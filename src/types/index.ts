@@ -1,5 +1,3 @@
-// src/types/index.ts
-
 export interface Rak {
   id: string
   kode: string

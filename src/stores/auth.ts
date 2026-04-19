@@ -1,53 +1,48 @@
 import { defineStore } from 'pinia'
+import { useApi, useApiToken } from '@/functions/api'
 
-interface Branch {
-  id: number,
-  code: string,
+type AuthState = {
+  user: User | null
+  token: string | null
 }
 
-interface Point {
-  amount: number,
-  rank: number,
-  different_from_first_place: number,
-}
-
-// Update AuthenticatedUser
-export type AuthenticatedUser = {
-  id: number,
-  name: string,
-  username: string,
-  role: string,
-  branch?: Branch,
-  point?: Point,
-}
-
-type State = {
-  user: AuthenticatedUser,
-  authenticated: -1 | 0 | 1,
-}
-
-export const useAuthStore = defineStore('Auth', {
-  state: (): State => ({
-    user: {
-      id: 0,
-      name: '',
-      username: '',
-      role: '',
-      point: {
-        amount: 0,
-        rank: 0,
-        different_from_first_place: 0,
-      },
-    },
-    authenticated: -1,
+export const useAuthStore = defineStore('auth', {
+  state: (): AuthState => ({
+    user: null,
+    token: localStorage.getItem('token'),
   }),
   actions: {
-    setUser (user: Partial<AuthenticatedUser>) {
-      // Logic spread ini akan otomatis memasukkan objek branch ke dalam state user
-      this.user = { ...this.user, ...user }
+    setUser(user: User | null) {
+      this.user = user
     },
-    setAuthenticated (authenticated: -1 | 0 | 1) {
-      this.authenticated = authenticated
+    setAuthenticated(_value: number) {
+      // Bisa diisi logic jika diperlukan nanti
+    },
+
+    async login(credentials: Record<string, string>) {
+      const api = useApi()
+      const { setToken } = useApiToken()
+
+      try {
+        const response = await api.POST<{ token: string; user: User }>('auth/login', credentials)
+
+        this.token = response.token
+        this.user = response.user
+
+        localStorage.setItem('token', response.token)
+        setToken(response.token)
+      } catch (error) {
+        console.error('Login failed:', error)
+        throw error
+      }
+    },
+
+    logout() {
+      const { setToken } = useApiToken()
+      this.user = null
+      this.token = null
+      localStorage.removeItem('token')
+      setToken('')
     },
   },
 })

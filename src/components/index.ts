@@ -8,6 +8,8 @@ import AppButton from './app-button.vue'
 import AppStatusToggle from './app-status-toggle.vue'
 import AppTableFilter from './app-table-filter.vue'
 import AppInputSku from './app-input-sku.vue'
+import AppAlert from './app-alert.vue'
+import AppCard from './app-card.vue'
 
 export default {
   install(app: App) {
@@ -20,6 +22,8 @@ export default {
     app.component('AppStatusToggle', AppStatusToggle)
     app.component('AppTableFilter', AppTableFilter)
     app.component('AppInputSku', AppInputSku)
+    app.component('AppAlert', AppAlert)
+    app.component('AppCard', AppCard)
   },
 }
 
@@ -34,5 +38,7 @@ declare module 'vue' {
     AppStatusToggle: typeof AppStatusToggle
     AppTableFilter: typeof AppTableFilter
     AppInputSku: typeof AppInputSku
+    AppAlert: typeof AppAlert
+    AppCard: typeof AppCard
   }
 }

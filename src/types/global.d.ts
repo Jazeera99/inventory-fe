@@ -16,6 +16,10 @@ type ApiCollection<T, U = object> = U & {
   meta?: Pagination
 }
 
+type PaginatedResponse<T> = {
+  data: T[]
+}
+
 type CursorPagination = {
   next_cursor: string | null
   per_page: number

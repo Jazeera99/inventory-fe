@@ -1,3 +1,38 @@
+<script setup lang="ts">
+import { watch } from 'vue'
+import { useRoleEdit } from '@/models/role'
+import AppButton from '@/components/app-button.vue'
+
+const props = defineProps<{
+  isOpen: boolean
+  initialData: any
+  availablePermissions: string[]
+}>()
+
+const emit = defineEmits(['close', 'update'])
+
+// Gunakan composable edit
+const { form, submitting, errors, submitForm } = useRoleEdit()
+
+watch(
+  () => props.isOpen,
+  (open) => {
+    if (open && props.initialData) {
+      // Mapping data dari props ke form reactive milik composable
+      form.role_name = props.initialData.role_name
+      form.permissions = [...props.initialData.permissions]
+    }
+  },
+)
+
+const handleSubmit = async () => {
+  const res = await submitForm(props.initialData.id)
+  if (res) {
+    emit('update')
+  }
+}
+</script>
+
 <template>
   <div
     v-if="isOpen"
@@ -24,11 +59,13 @@
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Nama Role</label>
           <input
-            v-model="form.name"
+            v-model="form.role_name"
             type="text"
-            class="w-full px-4 py-2 border border-blue-100 bg-blue-50/30 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+            class="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+            :class="errors.role_name ? 'border-red-500' : 'border-blue-100 bg-blue-50/30'"
             required
           />
+          <p v-if="errors.role_name" class="text-red-500 text-xs mt-1">{{ errors.role_name[0] }}</p>
         </div>
 
         <div>
@@ -53,47 +90,14 @@
         </div>
 
         <div class="flex justify-end space-x-3 pt-4 border-t border-gray-100">
-          <AppButton variant="outline" @click="handleCancel" :disabled="isSubmitting">
+          <AppButton variant="outline" type="button" @click="$emit('close')" :disabled="submitting">
             Batal
           </AppButton>
-          <AppButton variant="primary" @click="handleConfirm" :loading="isSubmitting">
-            Simpan
+          <AppButton variant="primary" type="submit" :loading="submitting">
+            Simpan Perubahan
           </AppButton>
         </div>
       </form>
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { reactive, watch } from 'vue'
-
-const props = defineProps<{
-  isOpen: boolean
-  initialData: any
-  availablePermissions: string[]
-}>()
-
-const emit = defineEmits(['close', 'update'])
-
-const form = reactive({
-  id: null,
-  name: '',
-  permissions: [] as string[],
-})
-
-watch(
-  () => props.isOpen,
-  (open) => {
-    if (open && props.initialData) {
-      form.id = props.initialData.id
-      form.name = props.initialData.name
-      form.permissions = [...props.initialData.permissions]
-    }
-  },
-)
-
-const handleSubmit = () => {
-  emit('update', { ...form })
-}
-</script>

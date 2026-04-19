@@ -1,11 +1,17 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-// Pastikan path import sesuai dengan lokasi file Anda
-import RoleCard from '@/views/pengaturan/modal/role-card.vue'
-import RoleCreateModal from '@/views/pengaturan/modal/role-create.vue'
-import RoleEditModal from '@/views/pengaturan/modal/role-edit.vue'
+import { onMounted, ref } from 'vue'
+import { useRoleList, useRoleCreate, useRoleEdit, useRoleDelete } from '@/models/role'
+import { toast } from '@/stores/toast'
+import RoleCard from './modal/role-card.vue'
+import RoleCreateModal from './modal/role-create.vue'
+import RoleEditModal from './modal/role-edit.vue'
 
-// 1. Deklarasi data yang diperlukan
+// Ambil semua senjata dari models
+const { roles, loading, getData } = useRoleList()
+const { submitForm: submitCreate } = useRoleCreate()
+const { submitForm: submitEdit } = useRoleEdit()
+const { submitDelete } = useRoleDelete()
+
 const availablePermissions = [
   'Manajemen Rak',
   'Daftar Produk',
@@ -15,43 +21,59 @@ const availablePermissions = [
   'Manajemen User',
 ]
 
-const roles = ref([
-  { id: 1, name: 'Super Admin', permissions: ['Manajemen User', 'Laporan Stok'] },
-  { id: 2, name: 'Staff Gudang', permissions: ['Produk Masuk', 'Produk Keluar'] },
-])
-
-// State untuk kontrol Modal
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const selectedRole = ref<any>(null)
 
-// Logic CRUD
-const openCreate = () => {
-  showCreateModal.value = true
-}
+onMounted(() => {
+  getData()
+})
 
 const openEdit = (role: any) => {
-  selectedRole.value = { ...role } // Gunakan spread operator agar tidak mengubah data asli sebelum save
+  selectedRole.value = {
+    id: role.id,
+    role_name: role.role_name,
+    permissions: role.permissions,
+  }
   showEditModal.value = true
 }
 
-const handleDelete = (id: number) => {
-  if (confirm('Apakah Anda yakin ingin menghapus role ini?')) {
-    roles.value = roles.value.filter((r) => r.id !== id)
-  }
-}
-
-const handleSaveNew = (newData: any) => {
-  roles.value.push(newData)
+const handleCreate = async () => {
+  // const res = await submitCreate()
+  // if (res) {
+  //   toast.dataSaved()
+  //   showCreateModal.value = false
+  //   await getData()
+  // }
   showCreateModal.value = false
+  toast.dataSaved()
+  await getData()
 }
 
-const handleUpdateData = (updatedData: any) => {
-  const index = roles.value.findIndex((r) => r.id === updatedData.id)
-  if (index !== -1) {
-    roles.value[index] = updatedData
-  }
+const handleUpdate = async () => {
+  // const res = await submitEdit(data.id)
+  // if (res) {
+  //   toast.dataSaved()
+  //   showEditModal.value = false
+  //   selectedRole.value = null
+  //   await getData()
+  // }
   showEditModal.value = false
+  selectedRole.value = null
+  toast.dataSaved()
+  await getData()
+
+  console.log('UI Berhasil di-refresh otomatis!')
+}
+
+const handleDelete = async (id: number) => {
+  if (confirm('Apakah Anda yakin ingin menghapus role ini?')) {
+    const res = await submitDelete(id)
+    if (res) {
+      toast.dataDeleted()
+      await getData()
+    }
+  }
 }
 </script>
 
@@ -59,12 +81,20 @@ const handleUpdateData = (updatedData: any) => {
   <div class="space-y-6 p-6">
     <div class="flex justify-between items-center">
       <div>
-        <h1 class="text-2xl font-bold text-gray-800">Pengaturan Hak Akses</h1>
-        <p class="text-gray-500 text-sm">Kelola peran dan izin akses pengguna sistem.</p>
+        <h1 class="text-2xl font-bold text-gray-800">Hak Akses</h1>
+        <p class="text-gray-500 text-sm">Kelola peran dan izin akses sistem dari database.</p>
       </div>
+      <button
+        @click="showCreateModal = true"
+        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all"
+      >
+        + Tambah Role
+      </button>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div v-if="loading" class="text-center py-10 text-gray-400">Memuat data dari database...</div>
+
+    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <RoleCard
         v-for="role in roles"
         :key="role.id"
@@ -72,28 +102,13 @@ const handleUpdateData = (updatedData: any) => {
         @edit="openEdit"
         @delete="handleDelete"
       />
-
-      <button
-        @click="openCreate"
-        class="border-2 border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center text-gray-400 hover:border-blue-400 hover:text-blue-600 transition-all bg-gray-50/50"
-      >
-        <svg class="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M12 4v16m8-8H4"
-          />
-        </svg>
-        <span class="font-medium text-sm">Tambah Role Baru</span>
-      </button>
     </div>
 
     <RoleCreateModal
       :is-open="showCreateModal"
       :available-permissions="availablePermissions"
       @close="showCreateModal = false"
-      @create="handleSaveNew"
+      @create="handleCreate"
     />
 
     <RoleEditModal
@@ -102,7 +117,7 @@ const handleUpdateData = (updatedData: any) => {
       :initial-data="selectedRole"
       :available-permissions="availablePermissions"
       @close="showEditModal = false"
-      @update="handleUpdateData"
+      @update="handleUpdate"
     />
   </div>
 </template>

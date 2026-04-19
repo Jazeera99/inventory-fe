@@ -1,7 +1,7 @@
 <template>
   <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 group">
     <div class="flex justify-between items-start mb-4">
-      <h3 class="font-bold text-lg text-gray-900">{{ role.name }}</h3>
+      <h3 class="font-bold text-lg text-gray-900">{{ role.role_name }}</h3>
       <div class="flex space-x-2">
         <button
           @click="$emit('edit', role)"

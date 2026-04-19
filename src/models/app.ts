@@ -1,11 +1,11 @@
 import { useRouter } from 'vue-router'
 import { useRoute } from 'vue-router'
-import { UnauthenticatedException, useApi } from '@/functions/api'
+import { useApi } from '@/functions/api'
 import { useAuthStore } from '@/stores/auth'
 
 export function useInitApp() {
   type AppInitResponse = {
-    user: AuthenticatedUser
+    user: User
   }
 
   const route = useRoute()
@@ -16,10 +16,14 @@ export function useInitApp() {
 
   const init = async () => {
     try {
-      const response = await api.GET<AppInitResponse>('spg/init')
+      const response = await api.GET<AppInitResponse>('auth/init')
+
       auth.setUser(response.user)
-    } catch (error) {
-      if (error instanceof UnauthenticatedException) {
+
+      auth.setAuthenticated(1)
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        auth.setAuthenticated(0)
         return
       }
     }
@@ -27,7 +31,6 @@ export function useInitApp() {
     if (isOnGuestPage(route.name as string)) {
       await router.replace('/' + (route.query.r ?? ''))
     }
-    auth.setAuthenticated(1)
   }
 
   return {
