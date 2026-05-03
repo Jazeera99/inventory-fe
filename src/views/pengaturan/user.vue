@@ -1,3 +1,69 @@
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { useUserAdminList, useUserAdminToggle } from '@/models/user'
+import UserTable from '@/views/pengaturan/modal/user-table.vue'
+import UserCreateModal from '@/views/pengaturan/modal/user-create.vue'
+import UserEditModal from '@/views/pengaturan/modal/user-edit.vue'
+// import UserDeleteModal from '@/views/pengaturan/modal/user-delete.vue'
+
+// const availableRoles = ['Super Admin', 'Manager', 'Staff Gudang']
+// const users = ref([
+//   { id: 1, name: 'Admin Utama', email: 'admin@pro.com', role: 'Super Admin' },
+//   { id: 2, name: 'Budi Gudang', email: 'budi@pro.com', role: 'Staff Gudang' },
+// ])
+
+const { users, loading, getData } = useUserAdminList()
+const { toggle } = useUserAdminToggle()
+
+const showCreateModal = ref(false)
+const showEditModal = ref(false)
+// const showDeleteModal = ref(false)
+const selectedUser = ref<any>(null)
+
+onMounted(() => getData())
+
+const openCreate = () => (showCreateModal.value = true)
+
+const openEdit = (user: any) => {
+  selectedUser.value = user
+  showEditModal.value = true
+}
+
+// const openDelete = (user: any) => {
+//   selectedUser.value = user
+//   showDeleteModal.value = true
+// }
+
+// const handleCreate = (newData: any) => {
+//   users.value.push(newData)
+//   showCreateModal.value = false
+// }
+
+// const handleUpdate = (updatedData: any) => {
+//   const index = users.value.findIndex((u) => u.id === updatedData.id)
+//   if (index !== -1) users.value[index] = updatedData
+//   showEditModal.value = false
+// }
+
+// const handleDelete = (id: number) => {
+//   users.value = users.value.filter((u) => u.id !== id)
+//   showDeleteModal.value = false
+// }
+
+const handleToggle = async (user: any) => {
+  const result = await toggle(user.id)
+  if (result !== null) {
+    user.is_active = result
+  }
+}
+
+const onSuccess = () => {
+  showCreateModal.value = false
+  showEditModal.value = false
+  getData()
+}
+</script>
+
 <template>
   <div class="space-y-6">
     <div class="flex justify-between items-center">
@@ -21,77 +87,21 @@
       </button>
     </div>
 
-    <UserTable :users="users" @edit="openEdit" @delete="openDelete" />
+    <div v-if="loading" class="text-center py-10">Memuat data...</div>
+    <UserTable v-else :users="users" @edit="openEdit" @toggle="handleToggle" />
 
     <UserCreateModal
       :is-open="showCreateModal"
-      :available-roles="availableRoles"
       @close="showCreateModal = false"
-      @create="handleCreate"
+      @create="onSuccess"
     />
 
     <UserEditModal
       v-if="selectedUser"
       :is-open="showEditModal"
       :initial-data="selectedUser"
-      :available-roles="availableRoles"
       @close="showEditModal = false"
-      @update="handleUpdate"
-    />
-
-    <UserDeleteModal
-      v-if="selectedUser"
-      :is-open="showDeleteModal"
-      :user-data="selectedUser"
-      @close="showDeleteModal = false"
-      @confirm="handleDelete"
+      @update="onSuccess"
     />
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref } from 'vue'
-import UserTable from '@/views/pengaturan/modal/user-table.vue'
-import UserCreateModal from '@/views/pengaturan/modal/user-create.vue'
-import UserEditModal from '@/views/pengaturan/modal/user-edit.vue'
-import UserDeleteModal from '@/views/pengaturan/modal/user-delete.vue'
-
-const availableRoles = ['Super Admin', 'Manager', 'Staff Gudang']
-const users = ref([
-  { id: 1, name: 'Admin Utama', email: 'admin@pro.com', role: 'Super Admin' },
-  { id: 2, name: 'Budi Gudang', email: 'budi@pro.com', role: 'Staff Gudang' },
-])
-
-const showCreateModal = ref(false)
-const showEditModal = ref(false)
-const showDeleteModal = ref(false)
-const selectedUser = ref<any>(null)
-
-const openCreate = () => (showCreateModal.value = true)
-
-const openEdit = (user: any) => {
-  selectedUser.value = { ...user }
-  showEditModal.value = true
-}
-
-const openDelete = (user: any) => {
-  selectedUser.value = user
-  showDeleteModal.value = true
-}
-
-const handleCreate = (newData: any) => {
-  users.value.push(newData)
-  showCreateModal.value = false
-}
-
-const handleUpdate = (updatedData: any) => {
-  const index = users.value.findIndex((u) => u.id === updatedData.id)
-  if (index !== -1) users.value[index] = updatedData
-  showEditModal.value = false
-}
-
-const handleDelete = (id: number) => {
-  users.value = users.value.filter((u) => u.id !== id)
-  showDeleteModal.value = false
-}
-</script>

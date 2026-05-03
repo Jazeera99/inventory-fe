@@ -1,3 +1,43 @@
+<script setup lang="ts">
+import { ref, reactive, computed } from 'vue'
+import AppButton from '@/components/app-button.vue'
+import { useRackBulkGenerate } from '@/models/rack'
+
+const emit = defineEmits(['generate', 'cancel'])
+
+const { form, submitGenerate, submitting, errors } = useRackBulkGenerate()
+
+const previewLocations = computed(() => {
+  if (!form.rack_name || !form.total_column || !form.total_level) return []
+  const result = []
+  for (let k = 1; k <= form.total_column; k++) {
+    for (let t = 1; t <= form.total_level; t++) {
+      result.push(`${form.rack_name.toUpperCase()}${k}-${t}`)
+    }
+  }
+  return result
+})
+
+const handleConfirm = async () => {
+  try {
+    await submitGenerate()
+    emit('generate')
+    resetForm()
+  } catch (e) {}
+}
+
+const handleCancel = () => {
+  resetForm()
+  emit('cancel')
+}
+
+const resetForm = () => {
+  form.rack_name = ''
+  form.total_column = 1
+  form.total_level = 1
+}
+</script>
+
 <template>
   <div
     class="bg-white p-6 rounded-xl shadow-md border border-gray-100 animate-in fade-in duration-300"
@@ -16,9 +56,9 @@
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Nama Rak (Huruf)</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Nama Rak</label>
         <input
-          v-model="form.namaRak"
+          v-model="form.rack_name"
           type="text"
           placeholder="Contoh: A"
           class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none uppercase"
@@ -28,7 +68,7 @@
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Jumlah Kolom</label>
         <input
-          v-model.number="form.kolom"
+          v-model.number="form.total_column"
           type="number"
           placeholder="Maks 10"
           class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
@@ -37,7 +77,7 @@
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Jumlah Tingkat</label>
         <input
-          v-model.number="form.tingkat"
+          v-model.number="form.total_level"
           type="number"
           placeholder="Maks 5"
           class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
@@ -66,70 +106,14 @@
       </div>
 
       <div class="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-gray-200">
-        <AppButton variant="outline" @click="handleCancel" :disabled="isSubmitting">
+        <AppButton variant="outline" @click="handleCancel" :disabled="submitting">
           Batal
         </AppButton>
 
-        <AppButton variant="primary" @click="handleConfirm" :loading="isSubmitting">
+        <AppButton variant="primary" @click="handleConfirm" :loading="submitting">
           Simpan Ke Database
         </AppButton>
       </div>
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
-import AppButton from '@/components/app-button.vue'
-
-const emit = defineEmits(['generate', 'cancel'])
-
-const isSubmitting = ref(false)
-
-const form = reactive({
-  namaRak: '',
-  kolom: null as number | null,
-  tingkat: null as number | null,
-})
-
-const previewLocations = computed(() => {
-  if (!form.namaRak || !form.kolom || !form.tingkat) return []
-  const result = []
-  for (let k = 1; k <= form.kolom; k++) {
-    for (let t = 1; t <= form.tingkat; t++) {
-      result.push(`${form.namaRak.toUpperCase()}${k}-${t}`)
-    }
-  }
-  return result
-})
-
-const handleConfirm = async () => {
-  if (isSubmitting.value) return
-
-  isSubmitting.value = true
-
-  // Simulasi delay loading agar user merasa ada proses simpan
-  // Ganti ini dengan hit API asli nantinya
-  await new Promise((resolve) => setTimeout(resolve, 1000))
-
-  emit('generate', {
-    locations: previewLocations.value,
-    induk: form.namaRak.toUpperCase(),
-    tingkat: form.tingkat,
-  })
-
-  resetForm()
-  isSubmitting.value = false
-}
-
-const handleCancel = () => {
-  resetForm()
-  emit('cancel')
-}
-
-const resetForm = () => {
-  form.namaRak = ''
-  form.kolom = null
-  form.tingkat = null
-}
-</script>

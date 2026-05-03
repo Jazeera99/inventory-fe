@@ -23,6 +23,7 @@ const menuGroups = [
     id: 'manajemen',
     items: [
       { name: 'Manajemen Rak', path: '/rak' },
+      { name: 'Manajemen Kategori', path: '/kategori' },
       { name: 'Daftar Produk', path: '/produk' },
     ],
   },

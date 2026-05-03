@@ -1,3 +1,17 @@
+<script setup lang="ts">
+import AppTable from '@/components/app-table.vue'
+import AppButton from '@/components/app-button.vue'
+
+defineProps<{ users: any[] }>()
+defineEmits(['edit', 'toggle'])
+
+const tableHeaders = [
+  { text: 'User', align: 'left' as const },
+  { text: 'Role', align: 'left' as const },
+  { text: 'Aksi', align: 'right' as const },
+]
+</script>
+
 <template>
   <AppTable :headers="tableHeaders">
     <tr v-for="user in users" :key="user.id" class="hover:bg-gray-50/50 transition-colors">
@@ -6,20 +20,30 @@
           <div
             class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold mr-3"
           >
-            {{ user.name.charAt(0) }}
+            {{ user.full_name.charAt(0) }}
           </div>
           <div>
-            <div class="font-medium text-gray-900">{{ user.name }}</div>
-            <div class="text-xs text-gray-500">{{ user.email }}</div>
+            <div class="font-medium text-gray-900">{{ user.full_name }}</div>
+            <div class="text-xs text-gray-500">{{ user.username }}</div>
           </div>
         </div>
       </td>
 
       <td class="px-6 py-4 text-sm text-gray-600">
-        <span class="px-2 py-1 bg-gray-100 rounded text-xs">{{ user.role }}</span>
+        <span class="px-2 py-1 bg-gray-100 rounded text-xs">
+          {{ user.role?.name || 'No Role' }}
+        </span>
       </td>
 
       <td class="px-6 py-4 text-right space-x-3">
+        <AppButton
+          :variant="user.is_active ? 'success' : 'outline'"
+          size="sm"
+          @click="$emit('toggle', user)"
+        >
+          {{ user.is_active ? 'Aktif' : 'Non-Aktif' }}
+        </AppButton>
+
         <AppButton
           variant="ghost"
           size="sm"
@@ -37,7 +61,7 @@
             />
           </svg>
         </AppButton>
-        <AppButton
+        <!-- <AppButton
           variant="danger"
           size="sm"
           is-icon
@@ -53,22 +77,8 @@
             />
           </svg>
         </AppButton>
+        -->
       </td>
     </tr>
   </AppTable>
 </template>
-
-<script setup lang="ts">
-import AppTable from '@/components/app-table.vue'
-import AppButton from '@/components/app-button.vue'
-
-defineProps<{ users: any[] }>()
-defineEmits(['edit', 'delete'])
-
-// Definisi Header untuk tabel user
-const tableHeaders = [
-  { text: 'User', align: 'left' },
-  { text: 'Role', align: 'left' },
-  { text: 'Aksi', align: 'right' },
-]
-</script>

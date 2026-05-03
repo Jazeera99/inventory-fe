@@ -6,6 +6,7 @@ import Login from '@/views/auth/page-login.vue'
 import Dashboard from '@/views/dashboard/page-dashboard.vue'
 import Produk from '@/views/manajemen/produk.vue'
 import Rak from '@/views/manajemen/rak.vue'
+import Kategori from '@/views/manajemen/category.vue'
 import ProdukKeluar from '@/views/transaksi/produk-keluar.vue'
 import PindahProduk from '@/views/transaksi/pindah-produk.vue'
 import StockAdjustment from '@/views/transaksi/stock-adjustment.vue'
@@ -29,6 +30,7 @@ const routes = [
     children: [
       { path: 'dashboard', name: 'dashboard', component: Dashboard },
       { path: 'rak', component: Rak },
+      { path: 'kategori', component: Kategori },
       { path: 'produk', component: Produk },
       { path: 'produk-masuk', component: ProdukMasuk },
       { path: 'produk-keluar', component: ProdukKeluar },
