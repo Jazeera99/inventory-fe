@@ -15,5 +15,4 @@ app.use(GlobalComponents)
 app.use(GlobalDirectives)
 app.use(router)
 
-app.use(router)
 app.mount('#app')

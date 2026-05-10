@@ -201,17 +201,19 @@ const handleLogin = async () => {
             type="submit"
             variant="primary"
             :loading="submitting"
-            label="Masuk"
+            label="Login"
             class="w-full"
-          />
+            Login
+            >Login
+          </AppButton>
 
           <!-- Demo Credentials -->
-          <div class="mt-4 p-3 bg-blue-50 rounded-lg">
+          <!-- <div class="mt-4 p-3 bg-blue-50 rounded-lg">
             <p class="text-xs text-blue-800 text-center">
               <strong>Demo Credentials:</strong><br />
               Username: admin | Password: admin123
             </p>
-          </div>
+          </div> -->
         </form>
 
         <template #footer>
@@ -226,7 +228,7 @@ const handleLogin = async () => {
 
       <!-- Footer -->
       <div class="text-center mt-8 text-white/60 text-sm">
-        &copy; 2024 Inventory System. All rights reserved.
+        &copy; 2026 Inventory System. All rights reserved.
       </div>
     </div>
   </div>
