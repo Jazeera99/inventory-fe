@@ -18,7 +18,7 @@ import Roles from '@/views/pengaturan/role.vue'
 
 const routes = [
   {
-    path: '/',
+    path: '/login',
     name: 'login',
     component: Login,
   },
@@ -26,7 +26,7 @@ const routes = [
   {
     path: '/',
     component: MainLayout,
-    redirect: '/dashboard',
+    redirect: 'dashboard',
     children: [
       { path: 'dashboard', name: 'dashboard', component: Dashboard },
       { path: 'rak', component: Rak },

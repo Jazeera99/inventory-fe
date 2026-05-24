@@ -4,6 +4,8 @@
     <input
       :value="modelValue"
       @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
+      @focus="$emit('focus')"
+      @blur="$emit('blur')"
       :type="type"
       :placeholder="placeholder"
       class="px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
@@ -13,13 +15,13 @@
 
 <script setup lang="ts">
 defineProps({
-  modelValue: [String, Number],
+  modelValue: {
+    type: [String, Object, Number],
+    default: '',
+  },
   label: String,
   placeholder: String,
-  type: {
-    type: String,
-    default: 'text',
-  },
+  type: { type: String, default: 'text' },
 })
-defineEmits(['update:modelValue'])
+defineEmits(['update:modelValue', 'focus', 'blur'])
 </script>

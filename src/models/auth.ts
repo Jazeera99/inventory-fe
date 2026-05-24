@@ -11,6 +11,7 @@ interface ApiExtended {
 
 interface AuthStoreExtended {
   $reset: () => void
+  setUser: (user: any) => void
   setAuthenticated: (value: number) => void
 }
 
@@ -19,6 +20,7 @@ export function useAuthLogin() {
   const api = useApi() as unknown as ApiExtended
   const { setToken } = useApiToken()
   const { init } = useInitApp()
+  const auth = useAuthStore() as unknown as AuthStoreExtended
 
   const form = reactive({
     username: '',
@@ -32,8 +34,13 @@ export function useAuthLogin() {
     try {
       submitting.value = true
       errors.value = {}
-      const response = await api.POST<{ token: string }>('login', form)
+      const response = await api.POST<{ token: string; user: any }>('login', form)
       setToken(response.token)
+      if (response.user) {
+        auth.setUser(response.user)
+        // Cadangan opsional agar jika di-refresh halaman, data tidak hilang seketika
+        localStorage.setItem('user', JSON.stringify(response.user))
+      }
       await init()
       await router.push({ name: 'dashboard' })
     } catch (error) {
@@ -58,5 +65,6 @@ export function useAuthLogout() {
     api.POST('auth/logout')
     auth.$reset()
     auth.setAuthenticated(0)
+    localStorage.removeItem('user')
   }
 }

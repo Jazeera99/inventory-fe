@@ -9,7 +9,11 @@
               :key="h.text"
               :class="[
                 'px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider',
-                h.align === 'right' ? 'text-right' : 'text-left',
+                h.align === 'right'
+                  ? 'text-right'
+                  : h.align === 'center'
+                    ? 'text-center'
+                    : 'text-left',
               ]"
             >
               {{ h.text }}
@@ -27,6 +31,6 @@
 <script setup lang="ts">
 // Kita buat prop headers lebih canggih agar bisa atur posisi teks (kiri/kanan)
 defineProps<{
-  headers: { text: string; align?: 'left' | 'right' }[]
+  headers: { text: string; align?: 'left' | 'right' | 'center' }[]
 }>()
 </script>

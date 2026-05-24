@@ -7,10 +7,13 @@ type AuthState = {
 }
 
 export const useAuthStore = defineStore('auth', {
-  state: (): AuthState => ({
-    user: null,
-    token: localStorage.getItem('token'),
-  }),
+  state: (): AuthState => {
+    const savedUser = localStorage.getItem('user')
+    return {
+      user: savedUser ? (JSON.parse(savedUser) as User) : null,
+      token: localStorage.getItem('token'),
+    }
+  },
   actions: {
     setUser(user: User | null) {
       this.user = user
@@ -30,6 +33,7 @@ export const useAuthStore = defineStore('auth', {
         this.user = response.user
 
         localStorage.setItem('token', response.token)
+        localStorage.setItem('user', JSON.stringify(response.user))
         setToken(response.token)
       } catch (error) {
         console.error('Login failed:', error)
@@ -42,6 +46,7 @@ export const useAuthStore = defineStore('auth', {
       this.user = null
       this.token = null
       localStorage.removeItem('token')
+      localStorage.removeItem('user')
       setToken('')
     },
   },
