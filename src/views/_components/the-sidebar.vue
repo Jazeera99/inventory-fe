@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { reactive } from 'vue'
-import { useRoute } from 'vue-router'
-import { onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 defineProps<{
   isOpen: boolean
@@ -9,6 +9,13 @@ defineProps<{
 
 const emit = defineEmits(['close'])
 const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
+
+const loggedInUser = ref({
+  name: 'Guest',
+  username: 'guest01',
+})
 
 const openCategories = reactive<Record<string, boolean>>({
   manajemen: true,
@@ -17,47 +24,70 @@ const openCategories = reactive<Record<string, boolean>>({
   pengaturan: false,
 })
 
-const menuGroups = [
-  {
-    name: 'Manajemen Data',
-    id: 'manajemen',
-    items: [
-      { name: 'Manajemen Rak', path: '/rak' },
-      { name: 'Manajemen Kategori', path: '/kategori' },
-      { name: 'Daftar Produk', path: '/produk' },
-    ],
-  },
-  {
-    name: 'Transaksi Stok',
-    id: 'transaksi',
-    items: [
-      { name: 'Produk Masuk', path: '/produk-masuk' },
-      { name: 'Produk Keluar', path: '/produk-keluar' },
-      { name: 'Pindah Produk', path: '/pindah-produk' },
-      { name: 'Stock Adjustment', path: '/stock-adjustment' },
-    ],
-  },
-  {
-    name: 'Laporan',
-    id: 'laporan',
-    items: [
-      { name: 'Daftar Stok', path: '/daftar-stok' },
-      { name: 'Kartu Stok', path: '/kartu-stok' },
-    ],
-  },
-  {
-    name: 'Pengaturan Sistem',
-    id: 'pengaturan',
-    items: [
-      { name: 'Manajemen User', path: '/users' },
-      { name: 'Hak Akses', path: '/roles' },
-    ],
-  },
-]
+const filteredMenuGroups = computed(() => {
+  const rawGroups = [
+    {
+      name: 'Manajemen Data',
+      id: 'manajemen',
+      items: [
+        { name: 'Daftar Supplier', path: '/supplier', permission: 'Lihat Supplier' },
+        { name: 'Daftar Customer', path: '/customer', permission: 'Lihat Customer' },
+        { name: 'Manajemen Rak', path: '/rak', permission: 'Lihat Rak' },
+        { name: 'Daftar Kategori', path: '/kategori', permission: 'Lihat Kategori' },
+        { name: 'Daftar Produk', path: '/produk', permission: 'Lihat Produk' },
+      ],
+    },
+    {
+      name: 'Transaksi Stok',
+      id: 'transaksi',
+      items: [
+        { name: 'Stok Order', path: '/stok-order', permission: 'Transaksi' },
+        { name: 'Produk Masuk', path: '/produk-masuk', permission: 'Transaksi' },
+        { name: 'Produk Keluar', path: '/produk-keluar', permission: 'Transaksi' },
+        { name: 'Pindah Produk', path: '/pindah-produk', permission: 'Transaksi' },
+        { name: 'Penyesuaian Stok', path: '/stock-adjustment', permission: 'Transaksi' },
+      ],
+    },
+    {
+      name: 'Laporan',
+      id: 'laporan',
+      items: [
+        { name: 'Daftar Stok', path: '/daftar-stok', permission: 'Laporan Stok' },
+        { name: 'Kartu Stok', path: '/kartu-stok', permission: 'Laporan Stok' },
+      ],
+    },
+    {
+      name: 'Pengaturan Sistem',
+      id: 'pengaturan',
+      items: [
+        { name: 'Manajemen User', path: '/users', permission: 'Manajemen User' },
+        { name: 'Hak Akses', path: '/roles', permission: 'Hak Akses' },
+      ],
+    },
+  ]
+  return rawGroups
+    .map((group) => {
+      const allowedItems = group.items.filter((item) => authStore.hasPermission(item.permission))
+      return { ...group, items: allowedItems }
+    })
+    .filter((group) => group.items.length > 0) // Jika satu group kosong (misal semua menu pengaturan dicopot), sembunyikan seluruh judul kategorinya
+})
 
 onMounted(() => {
   if (route.path.includes('users') || route.path.includes('roles')) {
     openCategories.pengaturan = true
+  }
+
+  const savedUser = localStorage.getItem('user')
+  if (savedUser) {
+    try {
+      const parsedUser = JSON.parse(savedUser)
+      // Sesuaikan dengan properti data backend: full_name dan username
+      loggedInUser.value.name = parsedUser.full_name || parsedUser.name || 'Guest'
+      loggedInUser.value.username = parsedUser.username || 'guest01'
+    } catch (error) {
+      console.error('Gagal membaca data user dari localStorage:', error)
+    }
   }
 })
 
@@ -66,6 +96,18 @@ const toggleCategory = (id: string) => {
 }
 
 const isActive = (path: string) => route.path === path
+
+const handleLogout = () => {
+  const confirmLogout = confirm('Apakah Anda yakin ingin keluar dari sistem?')
+  if (confirmLogout) {
+    // Bersihkan session token login kamu di sini jika ada, contoh:
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+
+    // Tendang balik ke halaman login
+    router.push('/login')
+  }
+}
 </script>
 
 <template>
@@ -91,7 +133,7 @@ const isActive = (path: string) => route.path === path
               d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
             />
           </svg>
-          <span class="truncate">Inventory Pro</span>
+          <span class="truncate">Inventory</span>
         </h1>
         <button @click="emit('close')" class="lg:hidden text-gray-400 hover:text-white">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -110,7 +152,7 @@ const isActive = (path: string) => route.path === path
           <span class="ml-3 text-sm font-medium">Dashboard</span>
         </router-link>
 
-        <div v-for="group in menuGroups" :key="group.id">
+        <div v-for="group in filteredMenuGroups" :key="group.id">
           <button @click="toggleCategory(group.id)" class="menu-group-btn">
             {{ group.name }}
             <svg
@@ -145,14 +187,25 @@ const isActive = (path: string) => route.path === path
 
       <div class="p-4 border-t border-gray-700">
         <div class="flex items-center">
-          <div
-            class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold"
-          >
-            A
-          </div>
           <div class="ml-3">
-            <p class="text-sm font-medium text-white">Admin User</p>
-            <p class="text-xs text-gray-400">admin@inventory.com</p>
+            <p class="text-sm font-medium text-white">{{ loggedInUser.name }}</p>
+            <p class="text-xs text-gray-400">{{ loggedInUser.username }}</p>
+          </div>
+          <div p-4 class="ml-auto">
+            <button
+              @click="handleLogout"
+              title="Keluar Sistem"
+              class="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-800 rounded-lg transition-colors shrink-0"
+            >
+              <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                />
+              </svg>
+            </button>
           </div>
         </div>
       </div>

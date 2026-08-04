@@ -14,6 +14,23 @@ export const useAuthStore = defineStore('auth', {
       token: localStorage.getItem('token'),
     }
   },
+
+  getters: {
+    hasPermission: (state) => {
+      return (permissionName: string): boolean => {
+        if (!state.user || !state.user.role) return false
+
+        const permissions = state.user.role.permissions || []
+
+        // 1. Jika dia dewa/Superadmin (*), otomatis true untuk izin apapun
+        if (permissions.includes('*')) return true
+
+        // 2. Cocokkan apakah izin yang diminta ada di array user
+        return permissions.includes(permissionName)
+      }
+    },
+  },
+
   actions: {
     setUser(user: User | null) {
       this.user = user

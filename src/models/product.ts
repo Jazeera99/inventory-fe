@@ -32,13 +32,14 @@ export function useProductCreate() {
   const errors = ref<FormError>({})
   const form = reactive<ProductFormData>({
     product_name: '',
+    sku: '',
     category_id: null,
     brand: '',
     type: '',
     packaging: '',
     size: '',
     unit: '',
-    min_stock: 0,
+    min_stock: 5,
   })
 
   const submitForm = async () => {
@@ -97,7 +98,7 @@ export function useProductToggle() {
     try {
       toggling.value = true
       const response = await api.PATCH<ApiResource<Product>>(`admin/products/${sku}/toggle-active`)
-      return response.data
+      return response
     } finally {
       toggling.value = false
     }

@@ -7,10 +7,16 @@ export function useRackList() {
   const loading = ref(false)
   const meta = ref<any>(null)
 
-  const getData = async () => {
+  const getData = async (params: { search?: string } = {}) => {
     try {
       loading.value = true
-      const response = await api.GET<ApiCollection<Rack>>(`admin/racks`)
+
+      const queryParams = new URLSearchParams()
+      if (params.search) {
+        queryParams.append('search', params.search)
+      }
+
+      const response = await api.GET<ApiCollection<Rack>>(`admin/racks?${queryParams.toString()}`)
       racks.value = response.data
       meta.value = response.meta
     } finally {
@@ -35,6 +41,7 @@ export function useRackCreate() {
     column_number: 1,
     level_number: 1,
     location_code: '',
+    capacity: 15,
   })
 
   const submitForm = async () => {
@@ -58,6 +65,41 @@ export function useRackCreate() {
   }
 }
 
+export function useRackUpdate() {
+  const api = useApi()
+  const submitting = ref(false)
+  const errors = ref<FormError>({})
+  const form = reactive<RackFormData>({
+    rack_name: '',
+    column_number: 1,
+    level_number: 1,
+    location_code: '',
+    capacity: 100,
+  })
+
+  const setFormValue = (rak: Rack) => {
+    form.rack_name = rak.rack_name
+    form.column_number = rak.column_number
+    form.level_number = rak.level_number
+    form.location_code = rak.location_code
+    form.capacity = rak.capacity
+  }
+
+  const submitUpdate = async (id: number) => {
+    try {
+      submitting.value = true
+      errors.value = {}
+      return await api.PUT<ApiResource<Rack>>(`admin/racks/${id}`, form)
+    } catch (error) {
+      errors.value = api.formErrors(error)
+      throw error
+    } finally {
+      submitting.value = false
+    }
+  }
+  return { form, errors, submitting, setFormValue, submitUpdate }
+}
+
 export function useRackBulkGenerate() {
   const api = useApi()
   const submitting = ref(false)
@@ -66,6 +108,7 @@ export function useRackBulkGenerate() {
     rack_name: '',
     total_column: 1,
     total_level: 1,
+    capacity: 15,
   })
 
   const submitGenerate = async () => {
@@ -97,7 +140,7 @@ export function useRackToggle() {
     try {
       toggling.value = true
       const response = await api.PATCH<ApiResource<Rack>>(`admin/racks/${id}/toggle-maintenance`)
-      return response.data
+      return response
     } finally {
       toggling.value = false
     }
@@ -106,5 +149,70 @@ export function useRackToggle() {
   return {
     toggling,
     submitToggle,
+  }
+}
+
+export function useRackRecommendations() {
+  const api = useApi()
+  const recommendedRacks = ref<Rack[]>([])
+  const loading = ref(false)
+
+  const fetchRecommendations = async (
+    qtyNeeded: number,
+    currentRackId?: number,
+    formItems: any[] = [],
+  ) => {
+    try {
+      loading.value = true
+
+      // Menyusun query parameter URL
+      const response = await api.POST<{ status: string; data: Rack[] }>(
+        'admin/racks/recommendations',
+        {
+          qty_needed: qtyNeeded,
+          current_rack_id: currentRackId || null,
+          form_items: formItems,
+        },
+      )
+
+      recommendedRacks.value = response.data
+      return response.data
+    } catch (error) {
+      console.error('Gagal mengambil rekomendasi rak:', error)
+      recommendedRacks.value = []
+    } finally {
+      loading.value = false
+    }
+  }
+
+  return {
+    recommendedRacks,
+    loading,
+    fetchRecommendations,
+  }
+}
+
+export function useRackEvacuation() {
+  const api = useApi()
+  const loading = ref(false)
+
+  const fetchEvacuationContents = async (rackId: number) => {
+    try {
+      loading.value = true
+      const response = await api.GET<{ status: string; source_rack_code: string; items: any[] }>(
+        `admin/racks/${rackId}/evacuation-contents`,
+      )
+      return response
+    } catch (error) {
+      console.error('Gagal mengambil isi rak untuk evakuasi:', error)
+      return null
+    } finally {
+      loading.value = false
+    }
+  }
+
+  return {
+    loading,
+    fetchEvacuationContents,
   }
 }

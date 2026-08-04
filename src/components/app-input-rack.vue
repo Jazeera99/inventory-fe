@@ -11,13 +11,16 @@ const emit = defineEmits(['update:modelValue'])
 
 const search = ref('')
 const showDropdown = ref(false)
+const isTyping = ref(false)
 
 watch(
   () => props.modelValue,
   (newId) => {
     if (newId) {
       const found = props.options.find((r) => r.id === newId)
-      if (found) search.value = `${found.location_code} (${found.rack_name})`
+      if (found) {
+        search.value = `${found.location_code} (${found.rack_name})`
+      }
     } else {
       search.value = ''
     }
@@ -26,19 +29,27 @@ watch(
 )
 
 const filteredRacks = computed(() => {
+  if (!showDropdown.value) return []
+
   const s = search.value.toLowerCase().trim()
 
-  // KRITIKAL: Jika input kosong atau dropdown sedang tidak fokus, jangan tampilkan apa-apa
-  if (!s || !showDropdown.value) return []
+  // ⚡ JIKA INPUT KOSONG atau user tidak sedang mengetik (baru klik focus), tampilkan semua opsi rekomendasi awal
+  if (!s || !isTyping.value) {
+    return props.options.slice(0, 15) // Tampilkan 15 data pertama agar lebih banyak pilihan
+  }
 
+  // JIKA USER MENGETIK, lakukan filter pencarian yang fleksibel
   return props.options
-    .filter(
-      (r) => r.location_code.toLowerCase().includes(s) || r.rack_name.toLowerCase().includes(s),
-    )
-    .slice(0, 5)
+    .filter((r) => {
+      const code = r.location_code.toLowerCase()
+      const name = r.rack_name.toLowerCase()
+      return code.includes(s) || name.includes(s)
+    })
+    .slice(0, 15)
 })
 
 const selectRack = (rack: any) => {
+  isTyping.value = false
   emit('update:modelValue', rack.id)
   search.value = `${rack.location_code} (${rack.rack_name})`
   showDropdown.value = false
@@ -48,10 +59,16 @@ const onFocus = () => {
   showDropdown.value = true
 }
 
+const onInput = () => {
+  isTyping.value = true // Set status mengetik jadi true saat ada input keyboard
+  showDropdown.value = true
+}
+
 const onBlur = () => {
   setTimeout(() => {
     showDropdown.value = false
-  }, 200)
+    isTyping.value = false
+  }, 250)
 }
 </script>
 
@@ -61,6 +78,7 @@ const onBlur = () => {
       type="text"
       v-model="search"
       @focus="onFocus"
+      @input="onInput"
       @blur="onBlur"
       :placeholder="placeholder"
       class="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-100 text-sm bg-white"

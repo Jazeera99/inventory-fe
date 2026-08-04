@@ -15,17 +15,42 @@ const emit = defineEmits(['close', 'update'])
 const { form, submitting, errors, submitForm } = useRoleEdit()
 
 watch(
-  () => props.isOpen,
-  (open) => {
-    if (open && props.initialData) {
-      // Mapping data dari props ke form reactive milik composable
-      form.role_name = props.initialData.role_name
-      form.permissions = [...props.initialData.permissions]
+  () => props.initialData,
+  (newData) => {
+    if (newData) {
+      form.role_name = newData.role_name
+      // Pastikan permissions berbentuk array, jika null buat jadi array kosong
+      // form.permissions = Array.isArray(newData.permissions) ? [...newData.permissions] : []
+      const perms = Array.isArray(newData.permissions) ? newData.permissions : []
+
+      // 🌟 KUNCI LOGIKA SUPERADMIN (*):
+      // Jika permissions berisi '*' atau nama role superadmin, centang SEMUA checkbox di UI
+      if (perms.includes('*') || newData.role_name.toLowerCase() === 'superadmin') {
+        form.permissions = [...props.availablePermissions]
+      } else {
+        // Filter hanya permission yang valid sesuai availablePermissions
+        form.permissions = perms.filter((p: string) => props.availablePermissions.includes(p))
+      }
     }
   },
+  { immediate: true },
+  // (open) => {
+  //   if (open && props.initialData) {
+  //     // Mapping data dari props ke form reactive milik composable
+  //     form.role_name = props.initialData.role_name
+  //     form.permissions = [...props.initialData.permissions]
+  //   }
+  // },
 )
 
 const handleSubmit = async () => {
+  if (
+    form.role_name.toLowerCase() === 'superadmin' ||
+    form.permissions.length === props.availablePermissions.length
+  ) {
+    form.permissions = ['*']
+  }
+
   const res = await submitForm(props.initialData.id)
   if (res) {
     emit('update')

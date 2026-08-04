@@ -1,9 +1,114 @@
+<script setup lang="ts">
+import { ref, watch } from 'vue'
+import { VueDatePicker } from '@vuepic/vue-datepicker'
+import '@vuepic/vue-datepicker/dist/main.css'
+import { format } from 'date-fns'
+
+interface FilterModel {
+  start?: string
+  end?: string
+}
+
+// Tambahkan prop 'minimal' agar bisa dipanggil secara compact di fitur stock-order
+const props = withDefaults(
+  defineProps<{
+    modelValue: FilterModel
+    minimal?: boolean
+  }>(),
+  {
+    minimal: false,
+  },
+)
+
+const emit = defineEmits(['update:modelValue'])
+
+const dateRange = ref<[Date, Date] | null>(null)
+let isUpdatingFromProps = false
+
+watch(
+  () => props.modelValue,
+  (newValue) => {
+    if (newValue?.start && newValue?.end) {
+      isUpdatingFromProps = true
+      const startDate = new Date(newValue.start)
+      const endDate = new Date(newValue.end)
+
+      // Validasi Date Object Valid
+      if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+        dateRange.value = [startDate, endDate]
+      } else {
+        dateRange.value = null
+      }
+      isUpdatingFromProps = false
+    } else if (!newValue?.start && !newValue?.end) {
+      dateRange.value = null
+    }
+  },
+  { immediate: true, deep: true },
+)
+
+watch(dateRange, (newRange) => {
+  if (isUpdatingFromProps) return
+
+  if (!newRange || !newRange[0] || !newRange[1]) {
+    emit('update:modelValue', { start: '', end: '' })
+    return
+  }
+
+  const [start, end] = newRange
+  try {
+    const startStr = format(start, 'yyyy-MM-dd')
+    const endStr = format(end, 'yyyy-MM-dd')
+    emit('update:modelValue', { start: startStr, end: endStr })
+  } catch (e) {
+    // Abaikan jika tanggal belum selesai dipilih/invalid
+  }
+})
+
+const clearFilter = () => {
+  dateRange.value = null
+  emit('update:modelValue', { start: '', end: '' })
+}
+</script>
+
 <template>
+  <!-- MODE MINIMAL (Hanya Input Kalender saja untuk stock-order) -->
+  <div v-if="minimal" class="relative min-w-[240px]">
+    <VueDatePicker
+      v-model="dateRange"
+      range
+      :multi-calendars="false"
+      :enable-time-picker="false"
+      format="dd/MM/yyyy"
+      placeholder="Tanggal Mulai s/d Selesai"
+      auto-apply
+      :close-on-auto-apply="true"
+      input-class-name="datepicker-input-minimal"
+    />
+    <button
+      v-if="dateRange"
+      @click.stop="clearFilter"
+      class="absolute right-2 top-1/2 -translate-y-1/2 bg-gray-200 hover:bg-gray-300 text-gray-600 rounded-full p-1 transition-colors z-10"
+      title="Hapus Filter"
+    >
+      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2.5"
+          d="M6 18L18 6M6 6l12 12"
+        />
+      </svg>
+    </button>
+  </div>
+
+  <!-- MODE STANDARD (Tampilan biasa yang digunakan fitur-fitur lain) -->
   <div
-    class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm"
+    v-else
+    class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 bg-white p-5 rounded-2xl border border-gray-100 shadow-sm"
   >
     <div class="flex items-center gap-3">
-      <div class="p-2 bg-indigo-50 rounded-lg">
+      <div class="p-2.5 bg-indigo-50 rounded-xl">
         <slot name="icon">
           <svg
             class="w-5 h-5 text-indigo-600"
@@ -14,211 +119,101 @@
             <path
               d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
               stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
             />
           </svg>
         </slot>
       </div>
-      <h2 class="text-lg font-black text-gray-800 tracking-tight uppercase">Filter Data</h2>
+      <div>
+        <h2 class="text-sm font-bold text-gray-800 tracking-wide uppercase">Filter Transaksi</h2>
+        <p class="text-xs text-gray-400">Cari berdasarkan rentang tanggal</p>
+      </div>
     </div>
 
-    <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+    <div class="flex items-center gap-2 w-full sm:w-auto">
       <div
-        class="flex flex-col bg-gray-50 border border-gray-200 rounded-xl px-4 py-1.5 focus-within:ring-2 focus-within:ring-indigo-500 transition-all min-w-[320px]"
+        class="flex flex-col flex-1 sm:flex-none bg-gray-50 hover:bg-gray-100/70 border border-gray-200/80 rounded-xl px-4 py-2 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all min-w-[280px] sm:min-w-[340px] relative group"
       >
-        <span class="text-[10px] font-bold text-gray-400 uppercase leading-none mb-1"
-          >Periode Transaksi</span
+        <span
+          class="text-[10px] font-bold text-indigo-500 tracking-wider uppercase leading-none mb-1.5"
+          >Periode Tanggal</span
         >
 
         <VueDatePicker
           v-model="dateRange"
           range
           :multi-calendars="false"
-          :enable-time-picker="true"
-          format="dd/MM/yyyy HH:mm"
-          placeholder="Pilih Rentang Tanggal"
+          :enable-time-picker="false"
+          format="dd/MM/yyyy"
+          placeholder="Pilih Tanggal Mulai s/d Selesai"
           auto-apply
-          :close-on-auto-apply="false"
+          :close-on-auto-apply="true"
           input-class-name="datepicker-input-custom"
           menu-class-name="datepicker-menu-custom"
-        >
-          <template #time-picker="{ hours, minutes, updateHours, updateMinutes }: any">
-            <div class="side-time-panel">
-              <div class="time-col">
-                <span class="time-header">JAM</span>
-                <div class="time-list">
-                  <button
-                    v-for="h in 24"
-                    :key="h"
-                    :class="['t-btn', { active: hours === h - 1 }]"
-                    @click="updateHours(h - 1)"
-                  >
-                    {{ String(h - 1).padStart(2, '0') }}
-                  </button>
-                </div>
-              </div>
-              <div class="time-col">
-                <span class="time-header">MNT</span>
-                <div class="time-list">
-                  <button
-                    v-for="m in 12"
-                    :key="m"
-                    :class="['t-btn', { active: minutes === (m - 1) * 5 }]"
-                    @click="updateMinutes((m - 1) * 5)"
-                  >
-                    {{ String((m - 1) * 5).padStart(2, '0') }}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </template>
-        </VueDatePicker>
-      </div>
-
-      <div class="relative flex-1 lg:w-64">
-        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-width="2" />
-          </svg>
-        </div>
-        <input
-          type="text"
-          :value="modelValue.sku"
-          @input="updateSku(($event.target as HTMLInputElement).value)"
-          placeholder="Ketik SKU Produk..."
-          class="w-full pl-9 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-gray-400"
         />
+
+        <button
+          v-if="dateRange"
+          @click.stop="clearFilter"
+          class="absolute right-3 top-1/2 -translate-y-1/2 bg-gray-200 hover:bg-gray-300 text-gray-600 rounded-full p-1 transition-colors z-10"
+          title="Hapus Filter"
+        >
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2.5"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
       </div>
     </div>
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, watch } from 'vue'
-import { VueDatePicker } from '@vuepic/vue-datepicker'
-import '@vuepic/vue-datepicker/dist/main.css'
-import { format } from 'date-fns'
-
-interface FilterModel {
-  start: string
-  end: string
-  sku: string
-}
-
-const props = defineProps<{ modelValue: FilterModel }>()
-const emit = defineEmits(['update:modelValue'])
-
-const dateRange = ref<[Date, Date] | null>(
-  props.modelValue.start && props.modelValue.end
-    ? [new Date(props.modelValue.start), new Date(props.modelValue.end)]
-    : null,
-)
-
-watch(dateRange, (newRange) => {
-  if (newRange && newRange[0] && newRange[1]) {
-    emit('update:modelValue', {
-      ...props.modelValue,
-      start: format(newRange[0], 'yyyy-MM-dd HH:mm:ss'),
-      end: format(newRange[1], 'yyyy-MM-dd HH:mm:ss'),
-    })
-  } else {
-    emit('update:modelValue', { ...props.modelValue, start: '', end: '' })
-  }
-})
-
-const updateSku = (val: string) => {
-  emit('update:modelValue', { ...props.modelValue, sku: val })
-}
-</script>
-
 <style>
-/* 1. Memaksa layout menu menjadi horizontal (Samping-sampingan) */
+/* Style input khusus untuk mode minimal */
+.datepicker-input-minimal {
+  background-color: #ffffff !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 0.5rem !important;
+  padding: 0.5rem 0.75rem !important;
+  font-size: 0.875rem !important;
+  color: #374151 !important;
+  height: 38px !important;
+}
+
 .dp__menu {
   display: flex !important;
   flex-direction: row !important;
   padding: 0 !important;
+  border-radius: 16px !important;
+  box-shadow:
+    0 10px 25px -5px rgba(0, 0, 0, 0.1),
+    0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid #f3f4f6 !important;
+  overflow: hidden;
 }
 
-/* Memastikan wrapper konten di dalamnya juga flex */
 .dp__menu_content_wrapper {
   display: flex !important;
   flex-direction: row !important;
 }
 
-/* Memberi garis pembatas antara kalender dan panel jam */
 .dp__instance_calendar {
   border-right: 1px solid #f3f4f6;
-  padding: 12px;
+  padding: 16px;
 }
 
-/* 2. Styling Panel Waktu di Samping */
-.side-time-panel {
-  display: flex;
-  background: #fff;
-  padding: 12px 8px;
-  gap: 8px;
-  height: 320px; /* Menyesuaikan tinggi kalender */
-}
-
-.time-col {
-  display: flex;
-  flex-direction: column;
-  width: 40px;
-}
-
-.time-header {
-  font-size: 10px;
-  font-weight: 800;
-  color: #9ca3af;
-  text-align: center;
-  margin-bottom: 10px;
-}
-
-.time-list {
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-right: 4px;
-}
-
-/* Scrollbar halus */
-.time-list::-webkit-scrollbar {
-  width: 3px;
-}
-.time-list::-webkit-scrollbar-thumb {
-  background: #e5e7eb;
-  border-radius: 10px;
-}
-
-.t-btn {
-  padding: 6px 0;
-  font-size: 12px;
-  font-weight: 700;
-  border-radius: 6px;
-  color: #4b5563;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.t-btn:hover {
-  background: #f3f4f6;
-  color: #6366f1;
-}
-
-.t-btn.active {
-  background: #6366f1 !important;
-  color: #fff !important;
-}
-
-/* Input Styles */
 .datepicker-input-custom {
   background: transparent !important;
   border: none !important;
   padding: 0 !important;
   font-size: 0.875rem !important;
   font-weight: 700 !important;
-  color: #374151 !important;
+  color: #1f2937 !important;
+  width: 100% !important;
 }
 </style>

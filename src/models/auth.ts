@@ -36,6 +36,7 @@ export function useAuthLogin() {
       errors.value = {}
       const response = await api.POST<{ token: string; user: any }>('login', form)
       setToken(response.token)
+      localStorage.setItem('token', response.token)
       if (response.user) {
         auth.setUser(response.user)
         // Cadangan opsional agar jika di-refresh halaman, data tidak hilang seketika
@@ -66,5 +67,6 @@ export function useAuthLogout() {
     auth.$reset()
     auth.setAuthenticated(0)
     localStorage.removeItem('user')
+    localStorage.removeItem('token')
   }
 }

@@ -1,8 +1,13 @@
+<script setup lang="ts">
+defineProps<{ role: any }>()
+defineEmits(['edit', 'delete'])
+</script>
+
 <template>
   <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 group">
     <div class="flex justify-between items-start mb-4">
       <h3 class="font-bold text-lg text-gray-900">{{ role.role_name }}</h3>
-      <div class="flex space-x-2">
+      <div v-if="role.role_name.toLowerCase() !== 'superadmin'" class="flex space-x-2">
         <button
           @click="$emit('edit', role)"
           class="text-gray-400 hover:text-blue-600 transition-colors"
@@ -17,6 +22,7 @@
           </svg>
         </button>
         <button
+          v-if="role.role_name.toLowerCase() !== 'superadmin'"
           @click="$emit('delete', role.id)"
           class="text-gray-400 hover:text-red-600 transition-colors"
         >
@@ -30,24 +36,35 @@
           </svg>
         </button>
       </div>
+      <span
+        v-else
+        class="text-xs bg-gray-100 text-gray-500 font-medium px-2 py-1 rounded border border-gray-200"
+      >
+        🔒 Bawaan Sistem
+      </span>
     </div>
 
     <div class="space-y-2">
       <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Izin Akses:</p>
       <div class="flex flex-wrap gap-2">
-        <span
-          v-for="p in role.permissions"
-          :key="p"
-          class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-[10px] font-medium border border-blue-100"
-        >
-          {{ p }}
-        </span>
+        <!-- Jika Superadmin (*), tampilkan badge khusus -->
+        <template v-if="role.permissions && role.permissions.includes('*')">
+          <span
+            class="bg-purple-50 text-purple-700 px-2 py-0.5 rounded text-[10px] font-bold border border-purple-200"
+          >
+            Akses Penuh (*)
+          </span>
+        </template>
+        <template v-else>
+          <span
+            v-for="p in role.permissions"
+            :key="p"
+            class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-[10px] font-medium border border-blue-100"
+          >
+            {{ p }}
+          </span>
+        </template>
       </div>
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-defineProps<{ role: any }>()
-defineEmits(['edit', 'delete'])
-</script>

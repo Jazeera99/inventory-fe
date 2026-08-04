@@ -1,81 +1,64 @@
+<script setup lang="ts">
+defineProps<{ item: StockLedgerItem }>()
+
+const tipeClass = (t: string) => {
+  // Sesuai dengan tipe di Backend: IN, OUT, MOVE, ADJUSTMENT
+  if (t === 'IN') return 'bg-blue-50 text-blue-700 border-blue-100'
+  if (t === 'OUT') return 'bg-red-50 text-red-700 border-red-100'
+  if (t === 'MOVE') return 'bg-purple-50 text-purple-700 border-purple-100'
+  return 'bg-amber-50 text-amber-700 border-amber-100'
+}
+
+const isExpiringSoon = (date: string | null) => {
+  if (!date) return false
+  const exp = new Date(date).getTime()
+  const now = new Date().getTime()
+  return exp - now < 90 * 24 * 60 * 60 * 1000
+}
+</script>
+
 <template>
-  <tr class="hover:bg-gray-50 transition-colors text-xs border-b">
-    <td class="px-6 py-4 font-mono text-gray-500 italic">
-      {{ formatDate(item.tanggal) }}
+  <tr class="border-b last:border-0 hover:bg-gray-50/50 transition-colors group">
+    <td class="px-6 py-4 text-[11px] font-mono font-bold text-gray-400 italic">
+      {{ item.date }}
     </td>
-    <td class="px-6 py-4 font-bold text-gray-900 uppercase">
-      {{ item.noTransaksi }}
+    <td class="px-6 py-4 text-xs font-black text-gray-900 tracking-tight">
+      {{ item.transaction_no }}
     </td>
     <td class="px-6 py-4">
+      <span :class="['px-2 py-1 rounded-md text-[10px] font-black border', tipeClass(item.type)]">
+        {{ item.type }}
+      </span>
+    </td>
+    <td class="px-6 py-4">
+      <p class="text-xs font-bold text-gray-800">{{ item.lokasi }}</p>
+      <div class="flex items-center gap-1 mt-0.5">
+        <span
+          class="w-2 h-2 rounded-full bg-red-400 animate-pulse"
+          v-if="item.expired_at && isExpiringSoon(item.expired_at)"
+        ></span>
+        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">
+          Exp: <span class="text-gray-600">{{ item.expired_at }}</span>
+        </p>
+      </div>
+    </td>
+    <td class="px-6 py-4 text-right font-black text-blue-600 text-sm">
+      {{ item.masuk > 0 ? '+' + item.masuk : '-' }}
+    </td>
+    <td class="px-6 py-4 text-right font-black text-red-500 text-sm">
+      {{ item.keluar > 0 ? '-' + item.keluar : '-' }}
+    </td>
+    <td class="px-6 py-4 text-right">
       <span
-        :class="[
-          'px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-tighter',
-          tipeClass(item.tipe),
-        ]"
+        class="bg-gray-900 text-white px-3 py-1 rounded-lg font-mono text-xs font-bold shadow-sm"
       >
-        {{ item.tipe }}
+        {{ item.saldo }}
       </span>
     </td>
     <td class="px-6 py-4">
       <div class="flex items-center gap-2">
-        <span class="p-1 bg-gray-100 rounded text-gray-600">
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-              stroke-width="2"
-            />
-          </svg>
-        </span>
-        <span class="font-mono text-gray-700 font-bold">{{ item.lokasi || 'N/A' }}</span>
-      </div>
-    </td>
-    <td class="px-6 py-4 text-right font-bold text-blue-600">
-      {{ item.quantity > 0 ? '+' + item.quantity : '-' }}
-    </td>
-    <td class="px-6 py-4 text-right font-bold text-red-500">
-      {{ item.quantity < 0 ? Math.abs(item.quantity) : '-' }}
-    </td>
-    <td class="px-6 py-4 text-right">
-      <div class="font-black text-gray-900 bg-gray-100 px-2 py-1 rounded inline-block min-w-[40px]">
-        {{ item.balanceAfter }}
-      </div>
-    </td>
-    <td class="px-6 py-4 text-gray-500 italic">
-      {{ item.keterangan || '-' }}
-    </td>
-    <td class="px-6 py-4 text-center">
-      <div class="flex items-center justify-center gap-1">
-        <div
-          class="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] text-indigo-700 font-bold uppercase"
-        >
-          {{ item.user.substring(0, 2) }}
-        </div>
-        <span class="text-xs font-medium text-gray-600">{{ item.user }}</span>
+        <span class="text-[11px] font-bold text-gray-600">{{ item.user }}</span>
       </div>
     </td>
   </tr>
 </template>
-
-<script setup lang="ts">
-defineProps<{ item: any }>()
-
-const tipeClass = (tipe: string) => {
-  const map: any = {
-    MASUK: 'bg-blue-100 text-blue-700 border border-blue-200',
-    KELUAR: 'bg-red-100 text-red-700 border border-red-200',
-    ADJUSTMENT: 'bg-orange-100 text-orange-700 border border-orange-200',
-    PINDAH: 'bg-purple-100 text-purple-700 border border-purple-200',
-  }
-  return map[tipe] || 'bg-gray-100 text-gray-700'
-}
-
-const formatDate = (date: any) => {
-  return new Date(date).toLocaleString('id-ID', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-</script>

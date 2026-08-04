@@ -1,3 +1,8 @@
+<script setup lang="ts">
+defineProps<{ sku: string; data: any[]; total: number }>()
+defineEmits(['close'])
+</script>
+
 <template>
   <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
     <div
@@ -30,13 +35,14 @@
               <div
                 class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center font-black group-hover:bg-indigo-600 group-hover:text-white transition-colors"
               >
-                {{ loc.kodeLokasi.charAt(0) }}
+                {{ loc.rackName.charAt(0) }}
               </div>
-              <span class="font-mono text-sm font-bold text-gray-700">{{ loc.kodeLokasi }}</span>
+              <span class="font-mono text-sm font-bold text-gray-700">{{ loc.rackName }}</span>
+              <span class="text-[10px] text-gray-400 font-medium">Exp: {{ loc.expiredAt }}</span>
             </div>
             <span class="text-lg font-black text-gray-900"
-              >{{ loc.quantity }} <small class="text-[10px] text-gray-400">PCS</small></span
-            >
+              >{{ loc.qty }} <small class="text-[10px] text-gray-400"></small
+            ></span>
           </div>
         </div>
 
@@ -47,15 +53,10 @@
             >Total Akumulasi</span
           >
           <span class="text-2xl font-black text-indigo-600"
-            >{{ total }} <small class="text-xs">PCS</small></span
-          >
+            >{{ total }} <small class="text-xs"></small
+          ></span>
         </div>
       </div>
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-defineProps<{ sku: string; data: any[]; total: number }>()
-defineEmits(['close'])
-</script>

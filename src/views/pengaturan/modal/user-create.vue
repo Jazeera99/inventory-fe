@@ -98,7 +98,7 @@ const handleSubmit = async () => {
           <p class="text-xs text-blue-600">
             <strong>Info:</strong> Password default user baru adalah
             <span class="font-bold">{{ form.password }}</span
-            >. User dapat mengubahnya nanti di profil masing-masing.
+            >.
           </p>
         </div>
         <div class="flex justify-end space-x-3 pt-4">

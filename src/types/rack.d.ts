@@ -4,6 +4,7 @@ type Rack = {
   rack_name: string
   column_number: number
   level_number: number
+  capacity: number
   is_active: boolean
   is_maintenance: boolean
   created_at: string
@@ -14,6 +15,7 @@ type RackFormData = {
   location_code?: string
   column_number: number
   level_number: number
+  capacity: number
   is_active?: boolean
   is_maintenance?: boolean
 }
@@ -22,6 +24,7 @@ type RackBulkGeneratePayload = {
   rack_name: string
   total_column: number
   total_level: number
+  capacity: number
 }
 
 // type RackResponse = {

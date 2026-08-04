@@ -10,6 +10,7 @@ import AppTableFilter from './app-table-filter.vue'
 import AppInputSku from './app-input-sku.vue'
 import AppAlert from './app-alert.vue'
 import AppCard from './app-card.vue'
+import AppInputSearch from './app-input-search.vue'
 
 export default {
   install(app: App) {
@@ -24,6 +25,7 @@ export default {
     app.component('AppInputSku', AppInputSku)
     app.component('AppAlert', AppAlert)
     app.component('AppCard', AppCard)
+    app.component('AppInputSearch', AppInputSearch)
   },
 }
 
@@ -40,5 +42,6 @@ declare module 'vue' {
     AppInputSku: typeof AppInputSku
     AppAlert: typeof AppAlert
     AppCard: typeof AppCard
+    AppInputSearch: typeof AppInputSearch
   }
 }

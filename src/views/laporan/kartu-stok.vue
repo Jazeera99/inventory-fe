@@ -1,228 +1,328 @@
-<template>
-  <div class="space-y-6">
-    <header class="flex justify-between items-center">
-      <div>
-        <h1 class="text-2xl font-black text-gray-900 tracking-tight leading-none">KARTU STOK</h1>
-        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-1">
-          Movement Ledger Report
-        </p>
-      </div>
-    </header>
-
-    <AppTableFilter v-model="filter" @open-date-filter="showDateModal = true">
-      <template #title>
-        <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest leading-none">
-          Parameter Filter
-        </h2>
-      </template>
-    </AppTableFilter>
-
-    <transition name="fade">
-      <KartuStokStat v-if="filter.sku" :stats="summaryStats" class="mb-6" />
-    </transition>
-
-    <div
-      class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden min-h-[400px]"
-    >
-      <div class="p-5 border-b flex justify-between items-center bg-gray-50/30">
-        <h3 class="font-bold text-gray-800 flex items-center gap-3">
-          <span class="w-1.5 h-6 bg-indigo-600 rounded-full"></span>
-          {{ filter.sku ? 'DETAIL MUTASI:' : 'SEMUA TRANSAKSI' }}
-          <span
-            v-if="filter.sku"
-            @click="openLocationDetail"
-            class="text-indigo-600 font-mono cursor-pointer hover:underline underline-offset-4 decoration-2"
-          >
-            {{ filter.sku }} ⓘ
-          </span>
-        </h3>
-      </div>
-
-      <div class="overflow-x-auto">
-        <AppTable :headers="headers">
-          <tr
-            v-for="item in filteredLedger"
-            :key="item.id"
-            class="hover:bg-indigo-50/30 transition-colors border-b last:border-0 group"
-          >
-            <td class="px-6 py-4 text-[11px] font-bold text-gray-400 italic font-mono">
-              {{ formatDate(item.tanggal) }}
-            </td>
-            <td class="px-6 py-4 text-xs font-black text-gray-900">{{ item.noTransaksi }}</td>
-            <td class="px-6 py-4">
-              <span
-                :class="[
-                  'px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-tighter border',
-                  tipeClass(item.tipe),
-                ]"
-              >
-                {{ item.tipe }}
-              </span>
-            </td>
-            <td class="px-6 py-4 font-bold text-gray-700 text-xs">{{ item.lokasi }}</td>
-            <td class="px-6 py-4 text-right font-black text-blue-600">
-              {{ item.quantity > 0 ? '+' + item.quantity : '-' }}
-            </td>
-            <td class="px-6 py-4 text-right font-black text-red-500">
-              {{ item.quantity < 0 ? Math.abs(item.quantity) : '-' }}
-            </td>
-            <td class="px-6 py-4 text-right">
-              <span class="bg-gray-900 text-white px-2 py-1 rounded font-mono text-xs font-bold">{{
-                item.balanceAfter
-              }}</span>
-            </td>
-            <td class="px-6 py-4 text-[11px] text-gray-500 italic truncate max-w-[150px]">
-              {{ item.keterangan || '-' }}
-            </td>
-            <td class="px-6 py-4">
-              <div class="flex items-center gap-2">
-                <div
-                  class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black"
-                >
-                  {{ item.user.substring(0, 2).toUpperCase() }}
-                </div>
-                <span class="text-xs font-bold text-gray-600">{{ item.user }}</span>
-              </div>
-            </td>
-          </tr>
-        </AppTable>
-      </div>
-    </div>
-
-    <div
-      v-if="showDateModal"
-      class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-    >
-      <div
-        class="bg-white rounded-[2rem] p-8 w-full max-w-sm shadow-2xl animate-in zoom-in duration-200"
-      >
-        <h3 class="text-xl font-black text-gray-900 mb-6 uppercase tracking-tighter">
-          Setel Periode
-        </h3>
-        <div class="space-y-4">
-          <div class="flex flex-col gap-1">
-            <label class="text-[10px] font-black text-gray-400 uppercase ml-1">Mulai Dari</label>
-            <input
-              type="datetime-local"
-              v-model="filter.start"
-              class="p-3 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-          <div class="flex flex-col gap-1">
-            <label class="text-[10px] font-black text-gray-400 uppercase ml-1"
-              >Hingga Selesai</label
-            >
-            <input
-              type="datetime-local"
-              v-model="filter.end"
-              class="p-3 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-          <button
-            @click="showDateModal = false"
-            class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest mt-4 hover:bg-indigo-700 shadow-xl shadow-indigo-200 transition-all"
-          >
-            Terapkan
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <DaftarStokDetail
-      v-if="showLocationModal"
-      :sku="filter.sku"
-      :data="locationData"
-      :total="totalStok"
-      @close="showLocationModal = false"
-    />
-  </div>
-</template>
-
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
-import AppTableFilter from '@/components/app-table-filter.vue'
-import AppTable from '@/components/app-table.vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import KartuStokStat from './modal/kartu-stok-stat.vue'
-import DaftarStokDetail from './modal/daftar-stok-detail.vue'
-import { stockLedgerData } from '@/data/dummyData'
+import KartuStokRow from './modal/kartu-stok-row.vue'
+import AppButton from '@/components/app-button.vue'
+import { useProductList } from '@/models/product'
+import { useStockLedger } from '@/models/stock-ledger'
+import fmtDate from '@/functions/fmt/date'
 
+const route = useRoute()
+const router = useRouter()
+const { products, getData: fetchProducts } = useProductList()
+const {
+  ledgerData,
+  metaData,
+  expiredOptions,
+  loading: ledgerLoading,
+  fetchLedger,
+  fetchExpiredOptions,
+} = useStockLedger()
 const showDateModal = ref(false)
-const showLocationModal = ref(false)
+const searchSku = ref('')
+const showDropdown = ref(false)
+const selectedProduct = ref<any>(null)
+const initialExpired = route.query.expired_at as string
+const cleanInitialExpired = initialExpired ? initialExpired.split('T')[0] : ''
 
-const filter = reactive({
-  start: '2024-03-01T00:00',
-  end: '2024-03-31T23:59',
-  sku: '',
+const filter = ref({
+  sku: (route.query.sku as string) || '',
+  expired_at: cleanInitialExpired,
+  start: (route.query.start as string) || '',
+  end: (route.query.end as string) || '',
 })
 
 const headers = [
   { text: 'Waktu' },
   { text: 'No. Trans' },
   { text: 'Jenis' },
-  { text: 'Lokasi' },
+  { text: 'Lokasi & Expired' },
   { text: 'Masuk' },
   { text: 'Keluar' },
-  { text: 'T. Akhir' },
-  { text: 'Keterangan' },
+  { text: 'Saldo' },
   { text: 'User' },
 ]
 
-// Logika Buka Detail Lokasi
-const locationData = ref([
-  { id: 1, kodeLokasi: 'GDG-01-A', quantity: 50 },
-  { id: 2, kodeLokasi: 'GDG-01-B', quantity: 25 },
-])
-const totalStok = computed(() => locationData.value.reduce((s, i) => s + i.quantity, 0))
+onMounted(async () => {
+  await fetchProducts()
 
-const openLocationDetail = () => {
-  // Disini Bos bisa panggil API berdasarkan SKU
-  showLocationModal.value = true
+  if (filter.value.sku && products.value.length > 0) {
+    const foundProduct = products.value.find(
+      (p: any) => p.sku.toLowerCase() === filter.value.sku.toLowerCase(),
+    )
+    if (foundProduct) {
+      selectedProduct.value = foundProduct
+      searchSku.value = foundProduct.sku
+      await fetchExpiredOptions(foundProduct.sku)
+      triggerFetch()
+    }
+  }
+})
+
+// Logika Search
+const searchResults = computed(() => {
+  if (!searchSku.value.trim()) return []
+  const needle = searchSku.value.toLowerCase().trim()
+  return products.value
+    .filter(
+      (p: any) =>
+        p.sku.toLowerCase().includes(needle) || p.product_name.toLowerCase().includes(needle),
+    )
+    .slice(0, 5)
+})
+
+// ✅ Dihandle saat user mulai mengetik di input box
+const handleInput = () => {
+  showDropdown.value = true
+  // Reset produk aktif sementara user mengetik produk baru
+  if (selectedProduct.value) {
+    selectedProduct.value = null
+    filter.value.sku = ''
+    filter.value.expired_at = ''
+  }
 }
 
-const filteredLedger = computed(() => {
-  const startTime = new Date(filter.start).getTime()
-  const endTime = new Date(filter.end).getTime()
+const selectProduct = (p: any) => {
+  selectedProduct.value = p
+  filter.value.sku = p.sku
+  filter.value.expired_at = ''
+  searchSku.value = p.sku
+  showDropdown.value = false
+  router.push({ query: { ...route.query, sku: p.sku, expired_at: undefined } })
+  fetchExpiredOptions(p.sku)
+  triggerFetch()
+}
 
-  return stockLedgerData
-    .filter((item) => {
-      const itemTime = new Date(item.tanggal).getTime()
-      const matchSku = filter.sku ? item.produkSku.toLowerCase() === filter.sku.toLowerCase() : true
-      return matchSku && itemTime >= startTime && itemTime <= endTime
+const resetSearch = () => {
+  selectedProduct.value = null
+  filter.value.sku = ''
+  filter.value.expired_at = ''
+  searchSku.value = ''
+  ledgerData.value = []
+  showDropdown.value = false
+
+  router.push({ path: '/kartu-stok', query: {} })
+}
+
+const triggerFetch = () => {
+  if (filter.value.sku) {
+    let cleanExpiredAt = null
+
+    // Jika expired_at dipilih, konversi format ISO menjadi format standard murni 'yyyy-MM-dd'
+    if (filter.value.expired_at) {
+      cleanExpiredAt = fmtDate.date(new Date(filter.value.expired_at), 'yyyy-MM-dd')
+    }
+
+    fetchLedger({
+      sku: filter.value.sku,
+      expired_at: cleanExpiredAt,
+      start_date: filter.value.start,
+      end_date: filter.value.end,
     })
-    .sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime())
-})
+  }
+}
+
+watch(
+  [() => filter.value.expired_at, () => filter.value.start, () => filter.value.end],
+  ([newExpired, newStart, newEnd]) => {
+    const cleanUrlExpired = newExpired ? newExpired.split('T')[0] : undefined
+    router.push({
+      query: {
+        ...route.query,
+        expired_at: cleanUrlExpired,
+        start: newStart || undefined,
+        end: newEnd || undefined,
+      },
+    })
+    triggerFetch()
+  },
+)
 
 const summaryStats = computed(() => {
-  if (filteredLedger.value.length === 0) return []
-  const sorted = [...filteredLedger.value].sort(
-    (a, b) => new Date(a.tanggal).getTime() - new Date(b.tanggal).getTime(),
-  )
-  const awal = sorted[0]?.balanceBefore || 0
-  const masuk = filteredLedger.value.reduce((s, i) => s + (i.quantity > 0 ? i.quantity : 0), 0)
-  const keluar = filteredLedger.value.reduce(
-    (s, i) => s + (i.quantity < 0 ? Math.abs(i.quantity) : 0),
-    0,
-  )
-  const akhir = filteredLedger.value[0]?.balanceAfter || awal
+  if (!metaData.value)
+    return [
+      // { label: 'Stok Awal', value: '0', color: 'text-gray-400' },
+      { label: 'Total Masuk', value: '0', color: 'text-blue-600' },
+      { label: 'Total Keluar', value: '0', color: 'text-red-600' },
+      { label: 'Sisa Akhir', value: '0', color: 'text-indigo-600' },
+    ]
+
+  // Hitung total masuk/keluar dari array data
+  const totalIn = ledgerData.value.reduce((acc, curr) => {
+    const type = curr.type ? curr.type.toUpperCase() : ''
+    return type !== 'MOVE' ? acc + curr.masuk : acc
+  }, 0)
+
+  const totalOut = ledgerData.value.reduce((acc, curr) => {
+    const type = curr.type ? curr.type.toUpperCase() : ''
+    return type !== 'MOVE' ? acc + curr.keluar : acc
+  }, 0)
+
+  const initialBalance = Number(metaData.value.initial_balance) || 0
+  const finalBalance = Number(metaData.value.final_balance) || 0
+
+  const displayOut = totalOut > 0 ? `-${totalOut}` : '0'
+
   return [
-    { label: 'Awal', value: awal, color: 'text-gray-400' },
-    { label: 'Masuk', value: '+' + masuk, color: 'text-blue-600' },
-    { label: 'Keluar', value: '-' + keluar, color: 'text-red-600' },
-    { label: 'Sisa', value: akhir, color: 'text-indigo-600 font-black' },
+    // { label: 'Stok Awal', value: initialBalance, color: 'text-gray-400' },
+    { label: 'Total Masuk', value: `+${totalIn}`, color: 'text-blue-600' },
+    { label: 'Total Keluar', value: displayOut, color: 'text-red-600' },
+    {
+      label: 'Sisa Akhir',
+      value: finalBalance,
+      color: 'text-indigo-600 font-black',
+    },
   ]
 })
-
-const tipeClass = (t: string) => {
-  if (t === 'MASUK') return 'bg-blue-50 text-blue-600 border-blue-100'
-  if (t === 'KELUAR') return 'bg-red-50 text-red-600 border-red-100'
-  return 'bg-orange-50 text-orange-600 border-orange-100'
-}
-
-const formatDate = (d: any) =>
-  new Date(d).toLocaleString('id-ID', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 </script>
+
+<template>
+  <div class="p-6 space-y-6 bg-gray-50 min-h-screen">
+    <header class="flex justify-between items-center">
+      <div>
+        <h1 class="text-2xl font-black text-gray-900 tracking-tight leading-none uppercase">
+          Kartu Stok
+        </h1>
+        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-1">
+          Movement Ledger Report
+        </p>
+      </div>
+      <!-- <AppButton
+        variant="secondary"
+        @click="showDateModal = true"
+        class="!rounded-2xl shadow-sm border-gray-200 text-xs font-bold"
+      >
+        📅 {{ filter.start || 'Semua' }} s/d {{ filter.end || 'Hari Ini' }}
+      </AppButton> -->
+    </header>
+
+    <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 relative">
+      <div class="grid md:grid-cols-2 gap-6">
+        <div class="relative">
+          <label
+            class="block text-[10px] font-black text-gray-400 uppercase mb-2 ml-1 tracking-widest"
+            >Pilih Produk</label
+          >
+          <div class="relative flex items-center">
+            <input
+              v-model="searchSku"
+              @input="handleInput"
+              @focus="showDropdown = true"
+              type="text"
+              placeholder="Ketik SKU / Nama..."
+              class="w-full pl-5 pr-10 py-4 bg-gray-50 border-none rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500"
+            />
+            <!-- Tombol Hapus/Clear (X) jika inputan terisi -->
+            <button
+              v-if="searchSku"
+              type="button"
+              @click="resetSearch"
+              class="absolute right-3.5 w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 text-gray-500 hover:bg-gray-300 text-xs font-bold transition"
+            >
+              ✕
+            </button>
+          </div>
+          <div
+            v-if="showDropdown && searchResults.length > 0 && !selectedProduct"
+            class="absolute z-50 w-full mt-2 bg-white border shadow-2xl rounded-2xl overflow-hidden"
+          >
+            <div
+              v-for="p in searchResults"
+              :key="p.sku"
+              @click="selectProduct(p)"
+              class="p-4 hover:bg-indigo-50 cursor-pointer border-b last:border-0 transition-colors"
+            >
+              <p class="font-black text-indigo-600 text-xs">{{ p.sku }}</p>
+              <p class="text-[13px] font-bold text-gray-700">{{ p.product_name }}</p>
+            </div>
+          </div>
+          <div
+            v-if="
+              showDropdown && searchSku.trim() && searchResults.length === 0 && !selectedProduct
+            "
+            class="absolute z-50 w-full mt-2 bg-white border border-gray-100 shadow-2xl rounded-2xl p-4 text-center text-xs font-bold text-gray-400"
+          >
+            ❌ Produk / SKU tidak ditemukan.
+          </div>
+        </div>
+
+        <div :class="{ 'opacity-30 pointer-events-none': !selectedProduct }">
+          <label
+            class="block text-[10px] font-black text-gray-400 uppercase mb-2 ml-1 tracking-widest"
+            >Filter Expired</label
+          >
+          <select
+            v-model="filter.expired_at"
+            class="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500 appearance-none"
+          >
+            <option value="">Semua Tanggal Expired</option>
+            <option v-for="date in expiredOptions" :key="date" :value="date">
+              {{
+                date ? 'Expired: ' + fmtDate.date(new Date(date), 'dd MMM yyyy') : 'Tanpa Expired'
+              }}
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <div
+        v-if="selectedProduct"
+        class="mt-4 p-4 bg-indigo-600 rounded-2xl flex items-center justify-between text-white shadow-lg shadow-indigo-100"
+      >
+        <div>
+          <p class="text-[10px] font-bold opacity-80 uppercase tracking-tighter">Monitoring SKU:</p>
+          <h2 class="font-black text-lg">
+            {{ selectedProduct.sku }} - {{ selectedProduct.product_name }}
+          </h2>
+        </div>
+        <button
+          @click="resetSearch"
+          class="bg-white/20 hover:bg-white/30 p-2 rounded-xl text-xs font-bold transition-all"
+        >
+          GANTI PRODUK
+        </button>
+      </div>
+    </div>
+
+    <div v-if="selectedProduct" class="mt-6">
+      <KartuStokStat :stats="summaryStats" />
+    </div>
+
+    <div v-if="ledgerLoading" class="py-20 text-center">
+      <div
+        class="animate-spin inline-block w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full"
+      ></div>
+      <p class="mt-2 text-xs font-bold text-gray-500 uppercase">Mengambil Data...</p>
+    </div>
+
+    <div class="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
+      <div v-if="!filter.sku" class="py-24 text-center">
+        <div
+          class="bg-indigo-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl"
+        >
+          📦
+        </div>
+        <h3 class="font-black text-gray-800 text-lg uppercase">Data Belum Dimuat</h3>
+        <p class="text-gray-400 text-xs font-bold max-w-xs mx-auto mt-2">
+          Silakan cari dan pilih SKU produk untuk melihat riwayat keluar-masuk barang.
+        </p>
+      </div>
+
+      <template v-else>
+        <div class="overflow-x-auto px-2">
+          <table class="w-full border-separate border-spacing-y-2">
+            <thead>
+              <tr class="text-gray-400 text-[10px] font-black uppercase tracking-widest">
+                <th v-for="h in headers" :key="h.text" class="px-6 py-4 text-left">{{ h.text }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <KartuStokRow v-for="(item, index) in ledgerData" :key="index" :item="item" />
+            </tbody>
+          </table>
+        </div>
+      </template>
+    </div>
+  </div>
+</template>

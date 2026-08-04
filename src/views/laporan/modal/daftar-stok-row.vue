@@ -1,12 +1,53 @@
+<script setup lang="ts">
+import { fmt } from '@/functions'
+
+const props = defineProps<{ item: any }>()
+defineEmits(['detail', 'kartu'])
+
+const isExpiredSoon = (dateString: string) => {
+  // Jika stok habis atau tidak ada tanggal, jangan jalankan fungsi
+  if (props.item.stokAkhir <= 0 || !dateString || dateString === '-' || dateString === 'null')
+    return false
+
+  const expiredDate = new Date(dateString)
+  const today = new Date()
+
+  // Validasi jika format dateString ternyata merusak fungsi Date internal (Invalid Date)
+  if (isNaN(expiredDate.getTime())) return false
+
+  // Hitung selisih dalam milidetik, lalu ubah ke satuan hari
+  const diffTime = expiredDate.getTime() - today.getTime()
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+  // 6 bulan diasumsikan kurang lebih 183 hari
+  // Dan pastikan tanggalnya belum lewat (diffDays > 0)
+  return diffDays > 0 && diffDays <= 183
+}
+
+const formatTanggalAman = (dateString: any) => {
+  if (!dateString || dateString === '-' || dateString === 'null') return '-'
+
+  const parsedDate = new Date(dateString)
+  // Jika tanggal tidak valid atau menghasilkan tahun 1970 karena data corrupt/kosong, kembalikan '-'
+  if (isNaN(parsedDate.getTime()) || parsedDate.getFullYear() === 1970) return '-'
+
+  return parsedDate.toLocaleString('id-ID')
+}
+</script>
+
 <template>
   <tr class="hover:bg-gray-50 transition-colors text-sm border-b">
     <td class="px-6 py-4 font-mono font-bold text-gray-900">{{ item.sku }}</td>
     <td class="px-6 py-4 font-semibold text-gray-800">{{ item.produkNama }}</td>
 
-    <td class="px-6 py-4 text-right font-medium text-gray-500">{{ item.stokAwal }}</td>
+    <!-- <td class="px-6 py-4 text-right font-medium text-gray-500">{{ item.stokAwal }}</td> -->
 
-    <td class="px-6 py-4 text-right text-blue-600 font-bold">+{{ item.totalMasuk }}</td>
-    <td class="px-6 py-4 text-right text-red-500 font-bold">-{{ item.totalKeluar }}</td>
+    <td class="px-6 py-4 text-right text-blue-600 font-bold">
+      {{ item.totalMasuk > 0 ? '+' + item.totalMasuk : item.totalMasuk }}
+    </td>
+    <td class="px-6 py-4 text-right text-red-500 font-bold">
+      {{ item.totalKeluar > 0 ? '-' + item.totalKeluar : item.totalKeluar }}
+    </td>
 
     <td class="px-6 py-4 text-right">
       <span :class="item.totalAdj >= 0 ? 'text-emerald-600' : 'text-orange-600'" class="font-bold">
@@ -24,15 +65,51 @@
         {{ item.stokAkhir }}
       </div>
       <p
-        v-if="item.stokAkhir <= 5"
+        v-if="item.stokAkhir <= 5 && item.stokAkhir > 0"
         class="text-[10px] text-red-500 mt-1 font-bold italic animate-pulse tracking-tighter"
       >
         LOW STOCK!
       </p>
+      <p
+        v-if="item.stokAkhir <= 0"
+        class="text-[10px] text-gray-400 mt-1 font-medium italic tracking-tighter"
+      >
+        HABIS
+      </p>
+    </td>
+    <td class="px-6 py-4 text-center font-mono font-medium">
+      <div
+        v-if="
+          item.stokAkhir > 0 &&
+          item.expiredTerdekat &&
+          item.expiredTerdekat !== '-' &&
+          item.expiredTerdekat !== 'null'
+        "
+      >
+        <span
+          :class="
+            isExpiredSoon(item.expiredTerdekat)
+              ? 'bg-rose-50 text-rose-700 border-rose-200/60'
+              : 'bg-amber-50 text-amber-700 border-amber-200/60'
+          "
+          class="px-2 py-1 rounded border font-bold"
+        >
+          {{ fmt.date(item.expiredTerdekat) }}
+        </span>
+
+        <p
+          v-if="isExpiredSoon(item.expiredTerdekat)"
+          class="text-[10px] text-rose-600 mt-1 font-black italic animate-pulse tracking-tighter"
+        >
+          EXPIRED SOON!
+        </p>
+      </div>
+
+      <span v-else class="text-gray-400">-</span>
     </td>
 
     <td class="px-6 py-4 text-center text-[11px] text-gray-400 font-mono">
-      {{ item.lastUpdate !== '-' ? new Date(item.lastUpdate).toLocaleString('id-ID') : '-' }}
+      {{ item.lastUpdate && item.lastUpdate !== '-' ? fmt.date(item.lastUpdate) : '-' }}
     </td>
 
     <td class="px-6 py-4 text-center">
@@ -66,8 +143,3 @@
     </td>
   </tr>
 </template>
-
-<script setup lang="ts">
-defineProps<{ item: any }>()
-defineEmits(['detail', 'kartu'])
-</script>

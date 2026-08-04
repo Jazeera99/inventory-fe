@@ -17,33 +17,21 @@ const handleLogin = async () => {
 }
 
 // const handleLogin = async () => {
-//   // Reset errors
-//   errors.username = ''
-//   errors.password = ''
+//   try {
+//     // 1. Jalankan proses hit API login melalui fungsi submit() bawaan model
+//     await submit()
 
-//   // Validate
-//   let hasError = false
-//   if (!form.username) {
-//     errors.username = 'Username harus diisi'
-//     hasError = true
+//     // 2. Cek apakah token sudah masuk ke localStorage setelah submit sukses
+//     // (Pastikan di dalam fungsi `submit()` Anda sudah ada kode localStorage.setItem('token', ...))
+//     const token = localStorage.getItem('token')
+
+//     if (token) {
+//       // 3. Jika token ada, pindahkan user ke dashboard secara manual!
+//       router.push('/dashboard')
+//     }
+//   } catch (error) {
+//     console.error('Login gagal:', error)
 //   }
-//   if (!form.password) {
-//     errors.password = 'Password harus diisi'
-//     hasError = true
-//   }
-
-//   if (hasError) return
-
-//   loading.value = true
-
-//   // Simulasi login
-//   setTimeout(() => {
-//     loading.value = false
-//     // Demo login - always success
-//     localStorage.setItem('isLoggedIn', 'true')
-//     localStorage.setItem('username', form.username)
-//     router.push('/dashboard')
-//   }, 1000)
 // }
 </script>
 
@@ -52,13 +40,9 @@ const handleLogin = async () => {
     <!-- Background Image dengan Overlay -->
     <div class="absolute inset-0 z-0">
       <div
-        class="absolute inset-0 bg-gradient-to-br from-blue-900/90 via-purple-900/80 to-black/90 z-10"
+        class="absolute inset-0 bg-gradient-to-br from-white-900/90 via-orange-900/80 to-black/90 z-10"
       ></div>
-      <img
-        src="https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&h=1080&fit=crop"
-        alt="Warehouse Background"
-        class="w-full h-full object-cover"
-      />
+      <img src="/img/bg_login.jpg" alt="Warehouse Background" class="w-full h-full object-cover" />
     </div>
 
     <!-- Decorative Elements -->
@@ -192,9 +176,9 @@ const handleLogin = async () => {
               />
               <span class="ml-2 text-sm text-gray-600">Ingat saya</span>
             </label>
-            <a href="#" class="text-sm text-blue-600 hover:text-blue-800 transition-colors"
+            <!-- <a href="#" class="text-sm text-blue-600 hover:text-blue-800 transition-colors"
               >Lupa password?</a
-            >
+            > -->
           </div>
 
           <AppButton
@@ -216,14 +200,14 @@ const handleLogin = async () => {
           </div> -->
         </form>
 
-        <template #footer>
+        <!-- <template #footer>
           <div class="text-center text-sm text-gray-600">
             Belum punya akun?
             <a href="#" class="text-blue-600 hover:text-blue-800 font-medium transition-colors"
               >Hubungi Administrator</a
             >
           </div>
-        </template>
+        </template> -->
       </AppCard>
 
       <!-- Footer -->

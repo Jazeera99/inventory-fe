@@ -3,7 +3,10 @@ import { ref, reactive, computed } from 'vue'
 import AppButton from '@/components/app-button.vue'
 import { useRackBulkGenerate } from '@/models/rack'
 
-const emit = defineEmits(['generate', 'cancel'])
+const emit = defineEmits<{
+  (e: 'generate', data: any): void
+  (e: 'cancel'): void
+}>()
 
 const { form, submitGenerate, submitting, errors } = useRackBulkGenerate()
 
@@ -20,10 +23,25 @@ const previewLocations = computed(() => {
 
 const handleConfirm = async () => {
   try {
-    await submitGenerate()
-    emit('generate')
+    const res = await submitGenerate()
+
+    // Unboxing data response dari Axios/composable
+    const rawResponse = res as any
+
+    // 3. Unboxing data: periksa apakah payload berada di dalam properti .data (Axios) atau langsung di objek utama
+    const responseData = rawResponse?.data ? rawResponse.data : rawResponse
+
+    if (responseData && responseData.message) {
+      // Tampilkan alert bawaan browser sesuai isi pesan dari backend
+      alert(responseData.message)
+    }
+
+    // Mengirimkan payload data response ke parent component agar jika dibutuhkan bisa dibaca
+    emit('generate', responseData)
     resetForm()
-  } catch (e) {}
+  } catch (e) {
+    console.error('Gagal men-generate rak:', e)
+  }
 }
 
 const handleCancel = () => {
@@ -35,6 +53,7 @@ const resetForm = () => {
   form.rack_name = ''
   form.total_column = 1
   form.total_level = 1
+  form.capacity = 15
 }
 </script>
 
@@ -83,6 +102,16 @@ const resetForm = () => {
           class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
         />
       </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Kapasitas Rak</label>
+        <input
+          v-model.number="form.capacity"
+          type="number"
+          placeholder="Min 1"
+          class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+        />
+        <p v-if="errors?.capacity" class="text-xs text-red-500 mt-1">{{ errors.capacity[0] }}</p>
+      </div>
     </div>
 
     <div
@@ -90,7 +119,8 @@ const resetForm = () => {
       class="mt-6 p-4 bg-gray-50 rounded-lg border border-dashed border-gray-300"
     >
       <p class="text-xs font-bold text-gray-500 uppercase mb-3 text-gray-400">
-        Preview Hasil (Total: {{ previewLocations.length }} Lokasi)
+        Preview Hasil (Total: {{ previewLocations.length }} Lokasi dengan Kapasitas:
+        {{ form.capacity }})
       </p>
       <div class="flex flex-wrap gap-2 mb-6">
         <span

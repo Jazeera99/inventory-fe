@@ -10,11 +10,13 @@ type Product = {
   unit: string | null
   min_stock: number
   is_active: boolean
+  pricing?: Pricing
   created_at: string
   updated_at: string
 }
 
 type ProductFormData = {
+  sku: string
   product_name: string
   category_id: number | null
   brand: string
@@ -23,4 +25,12 @@ type ProductFormData = {
   size: string | null
   unit: string | null
   min_stock: number
+}
+
+type Pricing = {
+  purchase_price: number
+  selling_price: number
+  margin_amount: number
+  margin_percentage: string
+  holding_cost_per_day: number
 }

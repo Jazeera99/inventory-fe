@@ -1,3 +1,49 @@
+<script setup lang="ts">
+import { computed } from 'vue'
+
+interface Props {
+  show?: boolean
+  variant?: 'success' | 'error' | 'warning' | 'info'
+  message?: string
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  show: true,
+  variant: 'info',
+})
+
+defineEmits<{
+  (e: 'close'): void
+}>()
+
+const variantClasses = {
+  success: 'bg-green-50 border border-green-200',
+  error: 'bg-red-50 border border-red-200',
+  warning: 'bg-yellow-50 border border-yellow-200',
+  info: 'bg-blue-50 border border-blue-200',
+}
+
+const textClass = computed(() => {
+  const classes = {
+    success: 'text-green-800',
+    error: 'text-red-800',
+    warning: 'text-yellow-800',
+    info: 'text-blue-800',
+  }
+  return classes[props.variant]
+})
+
+const closeButtonClass = computed(() => {
+  const classes = {
+    success: 'text-green-500 hover:bg-green-100',
+    error: 'text-red-500 hover:bg-red-100',
+    warning: 'text-yellow-500 hover:bg-yellow-100',
+    info: 'text-blue-500 hover:bg-blue-100',
+  }
+  return classes[props.variant]
+})
+</script>
+
 <template>
   <transition
     enter-active-class="transition duration-300 ease-out"
@@ -76,49 +122,3 @@
     </div>
   </transition>
 </template>
-
-<script setup lang="ts">
-import { computed } from 'vue'
-
-interface Props {
-  show?: boolean
-  variant?: 'success' | 'error' | 'warning' | 'info'
-  message?: string
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  show: true,
-  variant: 'info',
-})
-
-defineEmits<{
-  (e: 'close'): void
-}>()
-
-const variantClasses = {
-  success: 'bg-green-50 border border-green-200',
-  error: 'bg-red-50 border border-red-200',
-  warning: 'bg-yellow-50 border border-yellow-200',
-  info: 'bg-blue-50 border border-blue-200',
-}
-
-const textClass = computed(() => {
-  const classes = {
-    success: 'text-green-800',
-    error: 'text-red-800',
-    warning: 'text-yellow-800',
-    info: 'text-blue-800',
-  }
-  return classes[props.variant]
-})
-
-const closeButtonClass = computed(() => {
-  const classes = {
-    success: 'text-green-500 hover:bg-green-100',
-    error: 'text-red-500 hover:bg-red-100',
-    warning: 'text-yellow-500 hover:bg-yellow-100',
-    info: 'text-blue-500 hover:bg-blue-100',
-  }
-  return classes[props.variant]
-})
-</script>

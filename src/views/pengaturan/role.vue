@@ -9,16 +9,20 @@ import RoleEditModal from './modal/role-edit.vue'
 // Ambil semua senjata dari models
 const { roles, loading, getData } = useRoleList()
 const { submitForm: submitCreate } = useRoleCreate()
-const { submitForm: submitEdit } = useRoleEdit()
+const { form: editForm, submitForm: submitEdit } = useRoleEdit()
 const { submitDelete } = useRoleDelete()
 
 const availablePermissions = [
   'Manajemen Rak',
+  'Lihat Rak',
+  'Daftar Kategori',
+  'Lihat Kategori',
   'Daftar Produk',
-  'Produk Masuk',
-  'Produk Keluar',
+  'Lihat Produk',
+  'Transaksi',
   'Laporan Stok',
   'Manajemen User',
+  'Hak Akses',
 ]
 
 const showCreateModal = ref(false)
@@ -35,6 +39,9 @@ const openEdit = (role: any) => {
     role_name: role.role_name,
     permissions: role.permissions,
   }
+  // editForm.role_name = role.role_name
+  // editForm.permissions = [...role.permissions]
+
   showEditModal.value = true
 }
 
@@ -51,19 +58,25 @@ const handleCreate = async () => {
 }
 
 const handleUpdate = async () => {
-  // const res = await submitEdit(data.id)
-  // if (res) {
-  //   toast.dataSaved()
-  //   showEditModal.value = false
-  //   selectedRole.value = null
-  //   await getData()
-  // }
   showEditModal.value = false
   selectedRole.value = null
   toast.dataSaved()
   await getData()
+  // if (!selectedRole.value?.id) return
 
-  console.log('UI Berhasil di-refresh otomatis!')
+  // try {
+  //   // Panggil fungsi submit bawaan useRoleEdit dengan melempar ID role-nya
+  //   const res = await submitEdit(selectedRole.value.id)
+
+  //   if (res) {
+  //     showEditModal.value = false
+  //     selectedRole.value = null
+  //     toast.dataSaved()
+  //     await getData() // Refresh list table biar datanya terupdate di UI
+  //   }
+  // } catch (e) {
+  //   console.error('Gagal mengupdate role:', e)
+  // }
 }
 
 const handleDelete = async (id: number) => {
