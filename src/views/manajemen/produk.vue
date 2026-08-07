@@ -26,6 +26,19 @@ const stockErrorData = ref<{
   stocks: Array<{ location_code: string; qty: number; expired_at: string }>
 } | null>(null)
 
+const formatRupiah = (val: number | string | undefined | null) => {
+  if (val === null || val === undefined || val === '') return 'Rp 0,00'
+  const num = typeof val === 'string' ? parseFloat(val) : val
+  if (isNaN(num)) return 'Rp 0,00'
+  return (
+    'Rp ' +
+    new Intl.NumberFormat('id-ID', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(num)
+  )
+}
+
 const headers = computed(() => {
   const baseHeaders = [
     { text: 'SKU' },
@@ -34,12 +47,21 @@ const headers = computed(() => {
     { text: 'Tipe', align: 'center' },
     { text: 'Ukuran', align: 'center' },
     { text: 'Kemasan', align: 'center' },
+  ]
+  if (authStore.hasPermission('Daftar Produk')) {
+    baseHeaders.push(
+      { text: 'Harga Beli', align: 'center', class: 'min-w-[130px] whitespace-nowrap' },
+      { text: 'Harga Jual', align: 'center', class: 'min-w-[130px] whitespace-nowrap' },
+    )
+  }
+
+  baseHeaders.push(
     { text: 'Min Stock', align: 'center' },
     { text: 'Tgl Dibuat', align: 'center' },
     { text: 'Status', align: 'center' },
-  ]
+  )
 
-  if (authStore.hasPermission('Manajemen Produk')) {
+  if (authStore.hasPermission('Daftar Produk')) {
     baseHeaders.push({ text: 'Aksi', align: 'center' })
   }
 
@@ -97,9 +119,6 @@ const closeStockAlert = () => {
   showStockAlertModal.value = false
   stockErrorData.value = null
 }
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString('id-ID')
-}
 </script>
 
 <template>
@@ -134,7 +153,7 @@ const formatDate = (date: string) => {
         </div>
 
         <AppButton
-          v-if="authStore.hasPermission('Manajemen Produk')"
+          v-if="authStore.hasPermission('Daftar Produk')"
           @click="openCreateModal"
           variant="primary"
         >
@@ -168,13 +187,23 @@ const formatDate = (date: string) => {
         <td class="px-6 py-4 text-gray-600">{{ produk.type || '-' }}</td>
         <td class="px-6 py-4 text-gray-600">{{ produk.size || '-' }}</td>
         <td class="px-6 py-4 text-gray-600">{{ produk.packaging || '-' }}</td>
+        <template v-if="authStore.hasPermission('Daftar Produk')">
+          <td class="px-6 py-4 text-right font-mono text-gray-700 whitespace-nowrap min-w-[130px]">
+            {{ formatRupiah(produk.pricing?.purchase_price ?? produk.purchase_price) }}
+          </td>
+          <td
+            class="px-6 py-4 text-right font-mono font-bold text-emerald-600 whitespace-nowrap min-w-[130px]"
+          >
+            {{ formatRupiah(produk.pricing?.selling_price ?? produk.selling_price) }}
+          </td>
+        </template>
         <td class="px-6 py-4 text-center text-gray-600">{{ produk.min_stock }}</td>
         <td class="px-6 py-4 text-gray-500 text-sm">
           {{ fmtDate.date(new Date(produk.created_at), 'dd MMMM yyyy') }}
         </td>
         <td class="px-6 py-4 text-center">
           <AppStatusToggle
-            v-if="authStore.hasPermission('Manajemen Produk')"
+            v-if="authStore.hasPermission('Daftar Produk')"
             :active="produk.is_active"
             @toggle="handleToggleStatus(produk)"
           />
@@ -186,9 +215,9 @@ const formatDate = (date: string) => {
             {{ produk.is_active ? 'Aktif' : 'Non-Aktif' }}
           </span>
         </td>
-        <td v-if="authStore.hasPermission('Manajemen Produk')" class="px-6 py-4 text-center">
+        <td v-if="authStore.hasPermission('Daftar Produk')" class="px-6 py-4 text-center">
           <button
-            v-if="authStore.hasPermission('Manajemen Produk')"
+            v-if="authStore.hasPermission('Daftar Produk')"
             @click="produk.is_active ? openEditModal(produk) : null"
             :disabled="!produk.is_active"
             :class="[

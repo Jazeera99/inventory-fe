@@ -20,8 +20,8 @@ interface OrderDetail {
   expected_date?: string | null
   notes?: string | null
   cancel_reason?: string | null
-  supplier?: { name: string; email?: string; phone?: string; address?: string }
-  customer?: { name: string; email?: string; phone?: string; address?: string }
+  supplier?: { name: string; phone?: string; address?: string }
+  customer?: { name: string; phone?: string; address?: string }
   items?: OrderItem[]
 }
 

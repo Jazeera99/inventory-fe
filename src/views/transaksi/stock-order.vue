@@ -52,7 +52,8 @@ const formatDateString = (val: any): string => {
   }
   if (typeof val === 'string') {
     // Jika format string ISO dengan jam (misal "2026-08-04T00:00:00.000Z")
-    return val.includes('T') ? val.split('T')[0] : val
+    const parts = val.split('T')
+    return parts[0] || ''
   }
   return ''
 }
@@ -266,6 +267,10 @@ const saveOrder = async (formData: Record<string, unknown>) => {
     }
   } catch (error: any) {
     console.error('Gagal menyimpan order:', error)
+    alert(
+      error?.response?.data?.message ||
+        'Dokumen gagal diperbarui. Silakan periksa data yang diisi.',
+    )
   } finally {
     modalLoading.value = false
   }
@@ -296,18 +301,49 @@ const closeDetail = () => {
   detailOrder.value = null
 }
 
+// const createTransaction = (order: any) => {
+//   router.push({
+//     name: 'StockTransactionCreate',
+//     query: {
+//       stock_order_id: order.id,
+//       type: order.type === 'INBOUND' ? 'IN' : 'OUT',
+//     },
+//   })
+// }
+
 const createTransaction = (order: any) => {
-  router.push({
-    name: 'StockTransactionCreate',
-    query: {
-      stock_order_id: order.id,
-      type: order.type === 'INBOUND' ? 'IN' : 'OUT',
-    },
-  })
+  if (['INBOUND', 'RETURN_IN'].includes(order.type)) {
+    router.push({
+      path: 'produk-masuk',
+      query: { stock_order_id: order.id },
+    })
+  } else {
+    router.push({
+      path: 'produk-keluar',
+      query: { stock_order_id: order.id },
+    })
+  }
 }
 
 onMounted(() => {
   fetchOrders()
+  const query = router.currentRoute.value.query
+  if (query.action === 'create_retur') {
+    selectedOrder.value = {
+      type: 'RETURN_OUT',
+      supplier_id: query.supplier_id ? Number(query.supplier_id) : null,
+      parent_id: query.parent_id ? Number(query.parent_id) : null,
+      order_date: new Date().toISOString().split('T')[0],
+      items: [
+        {
+          product_sku: String(query.sku || ''),
+          qty_ordered: Number(query.qty || 1),
+          unit_price: 0,
+        },
+      ],
+    } as any
+    showModal.value = true
+  }
 })
 </script>
 
@@ -316,14 +352,14 @@ onMounted(() => {
     <!-- Header -->
     <div class="flex justify-between items-center mb-6">
       <div>
-        <h1 class="text-2xl font-bold text-gray-800">Daftar Purchase / Sales Order</h1>
+        <h1 class="text-2xl font-bold text-gray-800">Daftar Purchase / Sales Order / Retur</h1>
         <p class="text-sm text-gray-500 mt-1">Kelola pesanan pembelian dan penjualan</p>
       </div>
       <button
         @click="openCreateModal"
         class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
       >
-        + Buat PO / SO
+        + Buat PO / SO / Retur
       </button>
     </div>
 
@@ -339,6 +375,8 @@ onMounted(() => {
             <option value="">Semua</option>
             <option value="INBOUND">Purchase Order (PO)</option>
             <option value="OUTBOUND">Sales Order (SO)</option>
+            <option value="RETURN_IN">Retur ke Supplier</option>
+            <option value="RETURN_OUT">Retur dari Customer</option>
           </select>
         </div>
         <div>
@@ -348,8 +386,6 @@ onMounted(() => {
             class="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
           >
             <option value="">Semua</option>
-            <option value="DRAFT">Draft</option>
-            <option value="PENDING">Pending</option>
             <option value="PARTIAL">Partial</option>
             <option value="COMPLETED">Completed</option>
             <option value="CANCELLED">Cancelled</option>
@@ -421,15 +457,27 @@ onMounted(() => {
                     :class="
                       order.type === 'INBOUND'
                         ? 'bg-green-100 text-green-700'
-                        : 'bg-orange-100 text-orange-700'
+                        : order.type === 'OUTBOUND'
+                          ? 'bg-orange-100 text-orange-700'
+                          : order.type === 'RETURN_OUT'
+                            ? 'bg-rose-100 text-rose-700'
+                            : 'bg-purple-100 text-purple-700'
                     "
                   >
-                    {{ order.type === 'INBOUND' ? 'PO' : 'SO' }}
+                    {{
+                      order.type === 'INBOUND'
+                        ? 'PO'
+                        : order.type === 'OUTBOUND'
+                          ? 'SO'
+                          : order.type === 'RETURN_OUT'
+                            ? 'Retur Supplier'
+                            : 'Retur Customer'
+                    }}
                   </span>
                 </td>
                 <td class="px-4 py-3 text-sm font-medium">
                   {{
-                    order.type === 'INBOUND'
+                    ['INBOUND', 'RETURN_OUT'].includes(order.type)
                       ? order.supplier?.supplier_name
                       : order.customer?.customer_name
                   }}
@@ -462,7 +510,7 @@ onMounted(() => {
                       Detail
                     </button>
                     <button
-                      v-if="(order as any).status === 'PENDING'"
+                      v-if="['DRAFT', 'PENDING', 'PARTIAL'].includes((order as any).status)"
                       @click="editOrder(order)"
                       class="p-1 text-yellow-600 hover:underline"
                     >
@@ -541,14 +589,16 @@ onMounted(() => {
         <StockOrderReceipt
           :order="detailOrder"
           :loading="detailLoading"
-          :can-create-transaction="['PENDING', 'PARTIAL'].includes(detailOrder?.status || '')"
+          :can-create-transaction="
+            ['DRAFT', 'PENDING', 'PARTIAL'].includes(detailOrder?.status || '')
+          "
           @print="() => {}"
           @create-transaction="() => detailOrder && createTransaction(detailOrder)"
           @edit="
             () => {
+              const orderToEdit = detailOrder
               closeDetail()
-              selectedOrder = detailOrder as any
-              showModal = true
+              if (orderToEdit) editOrder(orderToEdit)
             }
           "
           @cancel="() => detailOrder && cancelOrder(detailOrder)"

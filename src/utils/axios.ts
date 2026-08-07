@@ -28,7 +28,7 @@ const dummyOrders = [
     customer: null,
     order_date: '2026-07-25',
     expected_date: '2026-08-01',
-    status: 'PENDING',
+    status: 'DRAFT',
     notes: 'Barang harus sampai sebelum bulan depan',
     items: [
       {
@@ -134,7 +134,7 @@ mock.onPost('/api/stock-orders').reply((config) => {
     id: Date.now(),
     order_no: `${newData.type === 'INBOUND' ? 'PO' : 'SO'}-${new Date().getFullYear()}-${String(dummyOrders.length + 1).padStart(4, '0')}`,
     ...newData,
-    status: 'PENDING',
+    status: 'DRAFT',
     supplier: newData.type === 'INBOUND' ? { id: newData.supplier_id, name: 'New Supplier' } : null,
     customer:
       newData.type === 'OUTBOUND' ? { id: newData.customer_id, name: 'New Customer' } : null,

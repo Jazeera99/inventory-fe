@@ -40,6 +40,8 @@ export function useProductCreate() {
     size: '',
     unit: '',
     min_stock: 5,
+    purchase_price: 0,
+    selling_price: 0,
   })
 
   const submitForm = async () => {

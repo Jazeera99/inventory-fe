@@ -20,6 +20,60 @@ const { categories, getData: fetchCategories } = useCategoryList()
 const submitting = computed(() => creating.value || updating.value)
 const errors = computed(() => (props.productData ? updateErrors.value : createErrors.value))
 
+const displayPurchasePrice = ref('')
+const displaySellingPrice = ref('')
+
+/**
+ * HELPER FORMATTER RUPIAH (1.000.000,00)
+ */
+const formatToRupiahDisplay = (val: number | string): string => {
+  if (val === null || val === undefined || val === '') return ''
+  const num = typeof val === 'string' ? parseFloat(val) : val
+  if (isNaN(num)) return ''
+
+  // Format ke ribuan titik dan paksa 2 desimal di belakang koma (,00)
+  return new Intl.NumberFormat('id-ID', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(num)
+}
+
+const parseRawNumber = (val: string): number => {
+  if (!val) return 0
+  // Bersihkan titik dan ganti koma menjadi titik desimal standar JS
+  const cleanVal = val.replace(/\./g, '').replace(',', '.')
+  const parsed = parseFloat(cleanVal)
+  return isNaN(parsed) ? 0 : parsed
+}
+
+// Handlers saat user mengetik di input harga
+const onInputPurchasePrice = (e: Event) => {
+  const target = e.target as HTMLInputElement
+  // Ambil hanya angka & koma
+  const value = target.value.replace(/[^0-9,]/g, '')
+
+  const rawNum = parseRawNumber(value)
+  form.purchase_price = rawNum
+  displayPurchasePrice.value = value
+}
+
+const onBlurPurchasePrice = () => {
+  displayPurchasePrice.value = formatToRupiahDisplay(form.purchase_price)
+}
+
+const onInputSellingPrice = (e: Event) => {
+  const target = e.target as HTMLInputElement
+  const value = target.value.replace(/[^0-9,]/g, '')
+
+  const rawNum = parseRawNumber(value)
+  form.selling_price = rawNum
+  displaySellingPrice.value = value
+}
+
+const onBlurSellingPrice = () => {
+  displaySellingPrice.value = formatToRupiahDisplay(form.selling_price)
+}
+
 const clearAllErrors = () => {
   if (createErrors) createErrors.value = {}
   if (updateErrors) updateErrors.value = {}
@@ -74,6 +128,15 @@ const syncFormWithProps = () => {
     form.unit = props.productData.unit || ''
     form.min_stock = props.productData.min_stock || 0
 
+    // Set harga dari pricing / props
+    form.purchase_price =
+      props.productData.pricing?.purchase_price ?? props.productData.purchase_price ?? 0
+    form.selling_price =
+      props.productData.pricing?.selling_price ?? props.productData.selling_price ?? 0
+
+    displayPurchasePrice.value = formatToRupiahDisplay(form.purchase_price)
+    displaySellingPrice.value = formatToRupiahDisplay(form.selling_price)
+
     if (props.productData.category) {
       searchQuery.value = props.productData.category.category_name
     } else if (categories.value.length > 0) {
@@ -90,6 +153,10 @@ const syncFormWithProps = () => {
     form.size = ''
     form.unit = ''
     form.min_stock = 0
+    form.purchase_price = 0
+    form.selling_price = 0
+    displayPurchasePrice.value = ''
+    displaySellingPrice.value = ''
     searchQuery.value = ''
   }
 }
@@ -302,6 +369,47 @@ const handleSave = async () => {
             required
             class="col-span-1"
           />
+        </div>
+
+        <!-- INPUTAN HARGA BELI & HARGA JUAL DENGAN FORMAT RUPIAH (.00) -->
+        <div class="col-span-2 grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Harga Beli *</label>
+            <div class="relative flex items-center">
+              <span class="absolute left-3 text-sm font-semibold text-gray-500">Rp</span>
+              <input
+                type="text"
+                :value="displayPurchasePrice"
+                @input="onInputPurchasePrice"
+                @blur="onBlurPurchasePrice"
+                placeholder="50.000,00"
+                class="w-full pl-9 pr-4 py-2 border rounded-lg outline-none text-sm border-gray-300 focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+            <p v-if="errors?.purchase_price" class="text-red-500 text-xs mt-1">
+              {{ errors.purchase_price[0] }}
+            </p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Harga Jual *</label>
+            <div class="relative flex items-center">
+              <span class="absolute left-3 text-sm font-semibold text-gray-500">Rp</span>
+              <input
+                type="text"
+                :value="displaySellingPrice"
+                @input="onInputSellingPrice"
+                @blur="onBlurSellingPrice"
+                placeholder="100.000,00"
+                class="w-full pl-9 pr-4 py-2 border rounded-lg outline-none text-sm border-gray-300 focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+            <p v-if="errors?.selling_price" class="text-red-500 text-xs mt-1">
+              {{ errors.selling_price[0] }}
+            </p>
+          </div>
         </div>
 
         <div class="col-span-2 flex items-center text-xs text-gray-400 italic">

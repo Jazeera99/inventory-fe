@@ -1,4 +1,4 @@
-type StockOrderType = 'INBOUND' | 'OUTBOUND'
+type StockOrderType = 'INBOUND' | 'OUTBOUND' | 'RETURN_IN' | 'RETURN_OUT'
 type StockOrderStatus = 'DRAFT' | 'PENDING' | 'PARTIAL' | 'COMPLETED' | 'CANCELLED'
 
 type StockOrderItem = {

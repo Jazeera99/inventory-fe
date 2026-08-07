@@ -90,20 +90,57 @@ onMounted(async () => {
   if (fetchRacks) await fetchRacks()
   await loadHistoryData()
 
-  const savedDraft = localStorage.getItem(LOCAL_STORAGE_KEY)
-  if (savedDraft) {
-    const parsedDraft = JSON.parse(savedDraft)
-    if (parsedDraft && parsedDraft.length > 0) {
-      const mauRestore = confirm(
-        'Sistem mendeteksi adanya data inputan sebelumnya yang belum disimpan ke database.\n\nApakah Anda ingin melanjutkan pengisian data tersebut?',
-      )
-      if (mauRestore) {
-        // Masukkan kembali draft ke state reaktif form
-        form.items.splice(0, form.items.length, ...parsedDraft)
-        // Validasi ulang SKU untuk memunculkan nama produk
-        form.items.forEach((_, idx) => validateSku(idx))
-      } else {
-        localStorage.removeItem(LOCAL_STORAGE_KEY)
+  const stockOrderId = route.query.stock_order_id
+  if (stockOrderId) {
+    try {
+      const { useApi } = await import('@/functions/api')
+      const api = useApi()
+      const res = await api.GET<any>(`admin/stock-orders/${stockOrderId}`)
+      const orderData = res.data?.data || res.data
+      if (orderData && orderData.items && orderData.items.length > 0) {
+        const rawRacks = racks.value as any
+        const rackList = Array.isArray(rawRacks) ? rawRacks : rawRacks?.data || []
+        const ldRack = rackList.find(
+          (r: any) =>
+            r.location_code === 'LD-01' || r.rack_name?.toLowerCase().includes('loading dock'),
+        )
+        const ldRackId = ldRack ? ldRack.id : null
+
+        const mappedItems = orderData.items
+          .map((item: any) => ({
+            product_sku: item.product_sku,
+            qty: Math.max(0, item.qty_ordered - (item.qty_fulfilled || 0)),
+            isValid: true,
+            namaProduk: item.product?.product_name || '',
+            unit_price: item.unit_price || 0,
+            expired_at: item.suggested_expired_at || '',
+          }))
+          .filter((item: any) => item.qty > 0)
+
+        if (mappedItems.length > 0) {
+          form.stock_order_id = Number(stockOrderId)
+          form.items.splice(0, form.items.length, ...mappedItems)
+          form.items.forEach((_, idx) => validateSku(idx))
+        }
+      }
+    } catch (err) {
+      console.error('Gagal memuat auto-fill dari Stock Order:', err)
+    }
+  } else {
+    // Jika tidak ada stock_order_id, cek apakah ada draft di localStorage
+    const savedDraft = localStorage.getItem(LOCAL_STORAGE_KEY)
+    if (savedDraft) {
+      const parsedDraft = JSON.parse(savedDraft)
+      if (parsedDraft && parsedDraft.length > 0) {
+        const mauRestore = confirm(
+          'Sistem mendeteksi adanya data inputan sebelumnya yang belum disimpan ke database.\n\nApakah Anda ingin melanjutkan pengisian data tersebut?',
+        )
+        if (mauRestore) {
+          form.items.splice(0, form.items.length, ...parsedDraft)
+          form.items.forEach((_, idx) => validateSku(idx))
+        } else {
+          localStorage.removeItem(LOCAL_STORAGE_KEY)
+        }
       }
     }
   }

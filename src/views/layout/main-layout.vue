@@ -10,6 +10,8 @@ const route = useRoute()
 const currentPageTitle = computed(() => {
   if (route.path === '/') return 'Dashboard'
   const menuNames: Record<string, string> = {
+    '/supplier': 'Daftar Supplier',
+    '/customer': 'Daftar Customer',
     '/rak': 'Manajemen Rak',
     '/produk': 'Daftar Produk',
     '/produk-masuk': 'Produk Masuk',

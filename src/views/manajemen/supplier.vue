@@ -116,8 +116,10 @@ const onSaveSupplier = async (formData: any) => {
 
 const handleToggleStatus = async (supplier: any) => {
   const result = await toggle(supplier.id)
+
+  // result bernilai boolean (true/false) atau null jika error
   if (result !== null) {
-    supplier.is_active = result
+    await getData()
   }
 }
 </script>

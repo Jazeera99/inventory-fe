@@ -25,6 +25,8 @@ type ProductFormData = {
   size: string | null
   unit: string | null
   min_stock: number
+  purchase_price: number | string
+  selling_price: number | string
 }
 
 type Pricing = {

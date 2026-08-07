@@ -14,7 +14,7 @@ export interface OrderItem {
 export interface OrderDetail {
   id: number
   order_no: string
-  type: 'INBOUND' | 'OUTBOUND'
+  type: 'INBOUND' | 'OUTBOUND' | 'RETURN_IN' | 'RETURN_OUT'
   status: string
   order_date: string
   expected_date?: string | null
@@ -23,6 +23,14 @@ export interface OrderDetail {
   supplier?: { supplier_name: string; email?: string; phone?: string; address?: string }
   customer?: { customer_name: string; email?: string; phone?: string; address?: string }
   items?: OrderItem[]
+  parent_order_no?: string | null
+  returns?: Array<{
+    id: number
+    order_no: string
+    type: string
+    status: string
+    items: Array<{ product_sku: string; qty_ordered: number }>
+  }>
 }
 
 const props = defineProps<{
@@ -51,14 +59,39 @@ const statusBadgeClass = computed(() => {
   return map[props.order?.status || ''] || 'bg-gray-100 text-gray-600'
 })
 
+// const totalQuantity = computed(() => {
+//   return props.order?.items?.reduce((sum, item) => sum + item.qty_ordered, 0) || 0
+// })
+
 const totalQuantity = computed(() => {
-  return props.order?.items?.reduce((sum, item) => sum + item.qty_ordered, 0) || 0
+  if (!props.order?.items || !Array.isArray(props.order.items)) return 0
+  return props.order.items.reduce((sum, item) => sum + (Number(item.qty_ordered) || 0), 0)
 })
 
+const documentTitle = computed(
+  () =>
+    (
+      ({
+        INBOUND: 'PURCHASE ORDER',
+        OUTBOUND: 'SALES ORDER',
+        RETURN_OUT: 'RETUR KE SUPPLIER',
+        RETURN_IN: 'RETUR DARI CUSTOMER',
+      }) as Record<string, string>
+    )[props.order?.type || ''] || 'DOKUMEN',
+)
+
+// const totalAmount = computed(() => {
+//   return (
+//     props.order?.items?.reduce((sum, item) => sum + item.qty_ordered * (item.unit_price || 0), 0) ||
+//     0
+//   )
+// })
+
 const totalAmount = computed(() => {
-  return (
-    props.order?.items?.reduce((sum, item) => sum + item.qty_ordered * (item.unit_price || 0), 0) ||
-    0
+  if (!props.order?.items || !Array.isArray(props.order.items)) return 0
+  return props.order.items.reduce(
+    (sum, item) => sum + (Number(item.qty_ordered) || 0) * (Number(item.unit_price) || 0),
+    0,
   )
 })
 
@@ -72,26 +105,41 @@ const formatRupiah = (amount: number) => {
 }
 
 const fulfilledPercentage = computed(() => {
-  if (!props.order?.items?.length) return 0
-  const totalOrdered = props.order.items.reduce((sum, item) => sum + item.qty_ordered, 0)
-  const totalFulfilled = props.order.items.reduce((sum, item) => sum + item.qty_fulfilled, 0)
+  if (!props.order?.items || !Array.isArray(props.order.items) || props.order.items.length === 0)
+    return 0
+  const totalOrdered = props.order.items.reduce(
+    (sum, item) => sum + (Number(item.qty_ordered) || 0),
+    0,
+  )
+  const totalFulfilled = props.order.items.reduce(
+    (sum, item) => sum + (Number(item.qty_fulfilled) || 0),
+    0,
+  )
+  if (totalOrdered === 0) return 0
   return Math.round((totalFulfilled / totalOrdered) * 100)
 })
 
-const completedDate = computed(() => {
-  if (!props.order || props.order.status !== 'COMPLETED') return null
+// const fulfilledPercentage = computed(() => {
+//   if (!props.order?.items?.length) return 0
+//   const totalOrdered = props.order.items.reduce((sum, item) => sum + item.qty_ordered, 0)
+//   const totalFulfilled = props.order.items.reduce((sum, item) => sum + item.qty_fulfilled, 0)
+//   return Math.round((totalFulfilled / totalOrdered) * 100)
+// })
 
-  // Jika order membawa relasi transaksi (transactions)
-  if (props.order.transactions && props.order.transactions.length > 0) {
-    // Cari tanggal transaksi paling akhir
-    const dates = props.order.transactions.map((t) => new Date(t.date))
-    const latestDate = new Date(Math.max(...dates))
-    return formatDate(latestDate)
-  }
+// const completedDate = computed(() => {
+//   if (!props.order || props.order.status !== 'COMPLETED') return null
 
-  // Fallback jika tidak ada relasi transaksi, gunakan updated_at
-  return formatDate(props.order.updated_at)
-})
+//   // Jika order membawa relasi transaksi (transactions)
+//   if (props.order.transactions && props.order.transactions.length > 0) {
+//     // Cari tanggal transaksi paling akhir
+//     const dates = props.order.transactions.map((t) => new Date(t.date))
+//     const latestDate = new Date(Math.max(...dates))
+//     return formatDate(latestDate)
+//   }
+
+//   // Fallback jika tidak ada relasi transaksi, gunakan updated_at
+//   return formatDate(props.order.updated_at)
+// })
 
 const formatDate = (date?: string | null) => {
   if (!date) return '-'
@@ -128,22 +176,25 @@ const handlePrint = () => {
         >
           Cetak / PDF
         </button>
-        <button
-          v-if="canCreateTransaction"
+        <!-- <button
+          v-if="
+            canCreateTransaction ||
+            (order && ['DRAFT', 'PENDING', 'PARTIAL'].includes(order.status))
+          "
           @click="emit('create-transaction')"
           class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2"
         >
           + Transaksi Stok
-        </button>
+        </button> -->
         <button
-          v-if="order.status === 'PENDING'"
+          v-if="['DRAFT', 'PENDING', 'PARTIAL'].includes(order.status)"
           @click="emit('edit')"
           class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition"
         >
           Edit
         </button>
         <button
-          v-if="order.status === 'PENDING'"
+          v-if="['DRAFT', 'PENDING', 'PARTIAL'].includes(order.status)"
           @click="emit('cancel')"
           class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
         >
@@ -161,7 +212,7 @@ const handlePrint = () => {
       <div class="flex justify-between items-start border-b pb-4 mb-4">
         <div>
           <h1 class="text-2xl font-bold text-gray-800">
-            {{ order.type === 'INBOUND' ? 'PURCHASE ORDER' : 'SALES ORDER' }}
+            {{ documentTitle }}
           </h1>
           <p class="text-sm text-gray-500">No. {{ order.order_no }}</p>
         </div>
@@ -178,18 +229,22 @@ const handlePrint = () => {
       <div class="grid grid-cols-2 gap-6 mb-6">
         <div>
           <h4 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-            {{ order.type === 'INBOUND' ? 'Supplier' : 'Customer' }}
+            {{ ['INBOUND', 'RETURN_OUT'].includes(order.type) ? 'Supplier' : 'Customer' }}
           </h4>
           <div class="mt-1 p-3 bg-gray-50 rounded-lg">
             <p class="font-medium text-gray-800">
               {{
-                order.type === 'INBOUND'
+                ['INBOUND', 'RETURN_OUT'].includes(order.type)
                   ? order.supplier?.supplier_name || '-'
                   : order.customer?.customer_name || '-'
               }}
             </p>
             <p class="text-sm text-gray-600">
-              {{ order.type === 'INBOUND' ? order.supplier?.phone : order.customer?.phone }}
+              {{
+                ['INBOUND', 'RETURN_OUT'].includes(order.type)
+                  ? order.supplier?.phone
+                  : order.customer?.phone
+              }}
             </p>
           </div>
         </div>
@@ -224,6 +279,21 @@ const handlePrint = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      <div
+        v-if="order.parent_order_no"
+        class="mb-4 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-sm text-blue-800"
+      >
+        Dokumen asal: <strong>{{ order.parent_order_no }}</strong>
+      </div>
+
+      <div v-if="order.returns?.length" class="mb-4 rounded-lg border border-gray-200 p-3 text-sm">
+        <p class="font-semibold text-gray-700 mb-1">Riwayat retur</p>
+        <p v-for="retur in order.returns" :key="retur.id" class="text-gray-600">
+          {{ retur.type === 'RETURN_OUT' ? 'Retur ke Supplier' : 'Retur dari Customer' }} —
+          {{ retur.order_no }} ({{ retur.status }})
+        </p>
       </div>
 
       <!-- Tabel Items -->

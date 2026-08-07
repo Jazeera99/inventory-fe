@@ -19,6 +19,8 @@ const availablePermissions = [
   'Lihat Kategori',
   'Daftar Produk',
   'Lihat Produk',
+  'Daftar Supplier',
+  'Daftar Customer',
   'Transaksi',
   'Laporan Stok',
   'Manajemen User',

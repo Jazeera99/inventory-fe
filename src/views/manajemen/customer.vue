@@ -117,7 +117,8 @@ const onSaveCustomer = async (formData: any) => {
 const handleToggleStatus = async (customer: any) => {
   const result = await toggle(customer.id)
   if (result !== null) {
-    customer.is_active = result
+    customer.is_active =
+      typeof result === 'object' && 'is_active' in result ? result.is_active : !customer.is_active
   }
 }
 </script>

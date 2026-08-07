@@ -1,15 +1,37 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useApi } from '@/functions/api'
 import { useDashboardSummary } from '@/models/dashboard'
 import TransaksiTerbaru from '@/views/dashboard/modal/new-transaction.vue'
 import DashboardSearch from '@/views/dashboard/modal/DashboardSearch.vue'
 
+const router = useRouter()
 const api = useApi()
 
 // Inisialisasi Composable Dashboard
-const { cards, stokPerProduk, transaksiTerbaru, stokMenipis, loading, getSummary } =
-  useDashboardSummary()
+const {
+  cards,
+  stokPerProduk,
+  transaksiTerbaru,
+  stokMenipis,
+  produkExpiringAlert,
+  loading,
+  getSummary,
+} = useDashboardSummary()
+
+const goToRetur = (item: any) => {
+  router.push({
+    path: '/stok-order',
+    query: {
+      action: 'create_retur',
+      sku: item.sku,
+      qty: item.qty,
+      supplier_id: item.supplier_id || undefined,
+      parent_id: item.parent_id || undefined,
+    },
+  })
+}
 
 // State Fitur Cari Sebaran Stok Produk Fisik
 // const searchSku = ref('')
@@ -209,6 +231,96 @@ onMounted(() => {
           :getIconPath="tipeIconPath"
           :getBadgeClass="tipeClass"
         />
+      </div>
+
+      <!-- Alert Produk Mendekati Expired (60-90 Hari) -->
+      <div class="base-card mb-6 border-l-4 border-amber-500">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <h3 class="text-lg font-semibold text-gray-800 flex items-center gap-2">
+              ⏰ Peringatan Produk Expired & Mendekati Expired (maks. 90 Hari)
+            </h3>
+            <p class="text-xs text-gray-500">
+              Produk berikut disarankan untuk diretur ke supplier sebelum masa kadaluarsa berakhir.
+            </p>
+          </div>
+          <span
+            v-if="produkExpiringAlert.length > 0"
+            class="px-2.5 py-1 text-xs font-bold bg-amber-100 text-amber-800 rounded-full"
+          >
+            {{ produkExpiringAlert.length }} Produk Mendekati Expired
+          </span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="table w-full border-collapse text-xs">
+            <thead>
+              <tr class="border-b border-gray-200 bg-amber-50/50 text-gray-600">
+                <th class="p-3 text-left font-semibold">Produk / SKU</th>
+                <th class="p-3 text-left font-semibold">Lokasi Rak</th>
+                <th class="p-3 text-center font-semibold">Tgl Expired</th>
+                <th class="p-3 text-right font-semibold">Stok Fisik</th>
+                <th class="p-3 text-center font-semibold">Estimasi Hari</th>
+                <th class="p-3 text-center font-semibold">Aksi Otomatis</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="item in produkExpiringAlert"
+                :key="item.id"
+                class="border-b last:border-0 hover:bg-amber-50/20 transition"
+              >
+                <td class="p-3">
+                  <span class="font-bold text-slate-800 block font-mono">{{ item.sku }}</span>
+                  <span class="text-slate-600 block truncate max-w-xs">{{
+                    item.product_name
+                  }}</span>
+                </td>
+                <td class="p-3">
+                  <span class="px-2 py-0.5 bg-gray-100 text-gray-700 font-mono font-bold rounded">
+                    {{ item.rack_code }}
+                  </span>
+                </td>
+                <td class="p-3 text-center font-mono text-gray-700">
+                  {{ item.expired_at }}
+                </td>
+                <td class="p-3 text-right font-bold text-amber-700">{{ item.qty }} pcs</td>
+                <td class="p-3 text-center">
+                  <span
+                    class="px-2 py-0.5 font-bold rounded-full text-[11px]"
+                    :class="
+                      item.days_left <= 30
+                        ? 'bg-red-100 text-red-700'
+                        : item.days_left <= 60
+                          ? 'bg-orange-100 text-orange-700'
+                          : 'bg-amber-100 text-amber-700'
+                    "
+                  >
+                    {{
+                      item.days_left < 0
+                        ? `Expired ${Math.abs(item.days_left)} hari lalu`
+                        : `${item.days_left} hari lagi`
+                    }}
+                  </span>
+                </td>
+                <td class="p-3 text-center">
+                  <button
+                    @click="goToRetur(item)"
+                    class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg transition shadow-sm flex items-center justify-center gap-1 mx-auto"
+                  >
+                    📦 Buat Retur (Auto-Fill)
+                  </button>
+                </td>
+              </tr>
+
+              <tr v-if="produkExpiringAlert.length === 0">
+                <td colspan="6" class="p-6 text-center text-gray-400 font-medium">
+                  Tidak ada produk expired atau mendekati expired dalam 90 hari.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div class="base-card">

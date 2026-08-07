@@ -169,7 +169,7 @@ const progressColor = (order: Order): string => {
                   </svg>
                 </button>
                 <button
-                  v-if="order.status === 'PENDING'"
+                  v-if="order.status === 'DRAFT'"
                   type="button"
                   class="p-1.5 text-amber-600 hover:bg-amber-100 rounded-md transition"
                   title="Edit"
@@ -185,7 +185,7 @@ const progressColor = (order: Order): string => {
                   </svg>
                 </button>
                 <button
-                  v-if="['PENDING', 'PARTIAL'].includes(order.status)"
+                  v-if="['DRAFT', 'PENDING', 'PARTIAL'].includes(order.status)"
                   type="button"
                   class="p-1.5 text-emerald-600 hover:bg-emerald-100 rounded-md transition"
                   title="Buat Transaksi Stok"
@@ -201,7 +201,7 @@ const progressColor = (order: Order): string => {
                   </svg>
                 </button>
                 <button
-                  v-if="order.status === 'PENDING'"
+                  v-if="order.status === 'DRAFT'"
                   type="button"
                   class="p-1.5 text-rose-600 hover:bg-rose-100 rounded-md transition"
                   title="Batalkan"

@@ -10,6 +10,7 @@ export function useDashboardSummary() {
   const stokPerProduk = ref<DashboardStokProduk[]>([])
   const transaksiTerbaru = ref<DashboardTransaksi[]>([])
   const stokMenipis = ref<DashboardStokMenipis[]>([])
+  const produkExpiringAlert = ref<any[]>([])
 
   const getSummary = async () => {
     try {
@@ -21,6 +22,7 @@ export function useDashboardSummary() {
       stokPerProduk.value = response.stokPerProduk
       transaksiTerbaru.value = response.transaksiTerbaru
       stokMenipis.value = response.stokMenipis
+      produkExpiringAlert.value = response.produkExpiringAlert || []
     } catch (error) {
       console.error('Gagal mengambil data ringkaran dashboard:', error)
     } finally {
@@ -28,5 +30,13 @@ export function useDashboardSummary() {
     }
   }
 
-  return { cards, stokPerProduk, transaksiTerbaru, stokMenipis, loading, getSummary }
+  return {
+    cards,
+    stokPerProduk,
+    transaksiTerbaru,
+    stokMenipis,
+    produkExpiringAlert,
+    loading,
+    getSummary,
+  }
 }

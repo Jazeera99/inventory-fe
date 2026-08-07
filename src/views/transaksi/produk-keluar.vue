@@ -135,33 +135,64 @@ onMounted(async () => {
 
   window.addEventListener('keydown', handleKeyDown)
 
-  const savedDraft = localStorage.getItem(LOCAL_STORAGE_KEY.value)
-  if (savedDraft) {
+  const stockOrderId = route.query.stock_order_id
+  if (stockOrderId) {
     try {
-      const parsedData = JSON.parse(savedDraft)
+      const { useApi } = await import('@/functions/api')
+      const api = useApi()
+      const res = await api.GET<any>(`admin/stock-orders/${stockOrderId}`)
+      const orderData = res.data?.data || res.data
+      if (orderData && orderData.items && orderData.items.length > 0) {
+        const mappedItems = orderData.items
+          .map((item: any) => ({
+            product_sku: item.product_sku,
+            qty: Math.max(0, item.qty_ordered - (item.qty_fulfilled || 0)),
+            isValid: true,
+            namaProduk: item.product?.product_name || '',
+          }))
+          .filter((item: any) => item.qty > 0)
 
-      if (isDraftValidAndNotEmpty(parsedData)) {
-        const mauRestore = confirm(
-          'Sistem mendeteksi adanya draft input produk keluar sebelumnya yang belum disimpan ke server.\n\nApakah Anda ingin melanjutkan pengisian data tersebut?',
-        )
-        if (mauRestore) {
-          form.date = parsedData.date || ''
-          form.type = parsedData.type || 'OUT'
-
-          // Gunakan splice agar Vue 3 dapat melacak perubahan struktur array dengan baik
-          form.items.splice(0, form.items.length, ...parsedData.items)
-
-          // Berikan jeda microtask sebentar agar DOM selesai merender baris baru sebelum divalidasi
+        if (mappedItems.length > 0) {
+          form.stock_order_id = Number(stockOrderId)
+          form.items.splice(0, form.items.length, ...mappedItems)
           setTimeout(() => {
             form.items.forEach((_, idx) => validateSku(idx))
             isRestoring.value = false
           }, 100)
-        } else {
-          localStorage.removeItem(LOCAL_STORAGE_KEY.value)
         }
       }
     } catch (err) {
-      console.error('Gagal memuat draft:', err)
+      console.error('Gagal memuat auto-fill dari Stock Order:', err)
+    }
+  } else {
+    const savedDraft = localStorage.getItem(LOCAL_STORAGE_KEY.value)
+    if (savedDraft) {
+      try {
+        const parsedData = JSON.parse(savedDraft)
+
+        if (isDraftValidAndNotEmpty(parsedData)) {
+          const mauRestore = confirm(
+            'Sistem mendeteksi adanya draft input produk keluar sebelumnya yang belum disimpan ke server.\n\nApakah Anda ingin melanjutkan pengisian data tersebut?',
+          )
+          if (mauRestore) {
+            form.date = parsedData.date || ''
+            form.type = parsedData.type || 'OUT'
+
+            // Gunakan splice agar Vue 3 dapat melacak perubahan struktur array dengan baik
+            form.items.splice(0, form.items.length, ...parsedData.items)
+
+            // Berikan jeda microtask sebentar agar DOM selesai merender baris baru sebelum divalidasi
+            setTimeout(() => {
+              form.items.forEach((_, idx) => validateSku(idx))
+              isRestoring.value = false
+            }, 100)
+          } else {
+            localStorage.removeItem(LOCAL_STORAGE_KEY.value)
+          }
+        }
+      } catch (err) {
+        console.error('Gagal memuat draft:', err)
+      }
     }
   }
   isRestoring.value = false

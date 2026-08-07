@@ -20,7 +20,7 @@ interface FormItem {
 
 interface OrderData {
   id?: number
-  type: 'INBOUND' | 'OUTBOUND'
+  type: 'INBOUND' | 'OUTBOUND' | 'RETURN_IN' | 'RETURN_OUT'
   supplier_id?: number | null
   customer_id?: number | null
   order_date: string
@@ -49,7 +49,7 @@ const parties = ref<Party[]>([])
 const products = ref<Product[]>([])
 
 const form = reactive({
-  type: 'INBOUND' as 'INBOUND' | 'OUTBOUND',
+  type: 'INBOUND' as 'INBOUND' | 'OUTBOUND' | 'RETURN_IN' | 'RETURN_OUT',
   party_id: null as number | null,
   order_date: new Date().toISOString().split('T')[0],
   expected_date: null as string | null,
@@ -65,7 +65,8 @@ const isFormValid = computed(() => {
 
 const fetchParties = async () => {
   try {
-    const endpoint = form.type === 'INBOUND' ? 'admin/suppliers' : 'admin/customers'
+    const isSupplier = ['INBOUND', 'RETURN_OUT'].includes(form.type)
+    const endpoint = isSupplier ? 'admin/suppliers' : 'admin/customers'
     const response = await api.GET<any>(endpoint)
     parties.value = response.data?.data || response.data || []
   } catch (error) {
@@ -98,10 +99,13 @@ const removeItem = (index: number) => {
 
 const handleSubmit = () => {
   if (!isFormValid.value) return
+  const isSupplier = ['INBOUND', 'RETURN_OUT'].includes(form.type)
+  const isCustomer = ['OUTBOUND', 'RETURN_IN'].includes(form.type)
+
   const payload = {
     type: form.type,
-    supplier_id: form.type === 'INBOUND' ? form.party_id : null,
-    customer_id: form.type === 'OUTBOUND' ? form.party_id : null,
+    supplier_id: isSupplier ? form.party_id : null,
+    customer_id: isCustomer ? form.party_id : null,
     order_date: form.order_date,
     expected_date: form.expected_date,
     notes: form.notes,
@@ -177,6 +181,30 @@ watch(
           >
             🚚 Sales Order
           </button>
+          <button
+            type="button"
+            class="px-2 py-1.5 text-xs rounded-lg border font-medium transition flex items-center justify-center gap-1"
+            :class="
+              form.type === 'RETURN_OUT'
+                ? 'border-rose-500 bg-rose-50 text-rose-700 shadow-sm font-bold'
+                : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+            "
+            @click="form.type = 'RETURN_OUT'"
+          >
+            🔄 Retur Keluar (Supplier)
+          </button>
+          <button
+            type="button"
+            class="px-2 py-1.5 text-xs rounded-lg border font-medium transition flex items-center justify-center gap-1"
+            :class="
+              form.type === 'RETURN_IN'
+                ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-sm font-bold'
+                : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+            "
+            @click="form.type = 'RETURN_IN'"
+          >
+            ↩️ Retur Masuk (Customer)
+          </button>
         </div>
       </div>
       <div>
@@ -196,7 +224,7 @@ watch(
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
         <label class="block text-xs font-semibold text-gray-700 uppercase mb-1">
-          {{ form.type === 'INBOUND' ? 'Supplier' : 'Customer' }} *
+          {{ ['INBOUND', 'RETURN_OUT'].includes(form.type) ? 'Supplier' : 'Customer' }} *
         </label>
         <select
           v-model="form.party_id"
@@ -204,7 +232,7 @@ watch(
           required
         >
           <option :value="null">
-            Pilih {{ form.type === 'INBOUND' ? 'Supplier' : 'Customer' }}
+            Pilih {{ ['INBOUND', 'RETURN_OUT'].includes(form.type) ? 'Supplier' : 'Customer' }}
           </option>
           <option v-for="party in parties" :key="party.id" :value="party.id">
             {{ party.name }}
