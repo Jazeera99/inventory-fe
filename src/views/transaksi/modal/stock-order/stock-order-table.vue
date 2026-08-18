@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
+const canManageOrder = computed(() => authStore.hasPermission('Kelola Order'))
+const canCreateTransaction = computed(() => authStore.hasPermission('Transaksi'))
+
 interface OrderItem {
   product_sku: string
   qty_ordered: number
@@ -168,8 +175,26 @@ const progressColor = (order: Order): string => {
                     />
                   </svg>
                 </button>
+
                 <button
-                  v-if="order.status === 'DRAFT'"
+                  v-if="canCreateTransaction && ['PENDING', 'PARTIAL'].includes(order.status)"
+                  type="button"
+                  class="p-1.5 text-emerald-600 hover:bg-emerald-100 rounded-md transition"
+                  title="Proses Transaksi Stok"
+                  @click="emit('create-transaction', order)"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                    />
+                  </svg>
+                </button>
+
+                <button
+                  v-if="canManageOrder && order.status === 'DRAFT'"
                   type="button"
                   class="p-1.5 text-amber-600 hover:bg-amber-100 rounded-md transition"
                   title="Edit"

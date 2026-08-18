@@ -23,24 +23,28 @@ const props = withDefaults(
 const emit = defineEmits(['update:modelValue'])
 
 const dateRange = ref<[Date, Date] | null>(null)
-let isUpdatingFromProps = false
+//let isUpdatingFromProps = false
 
 watch(
   () => props.modelValue,
   (newValue) => {
     if (newValue?.start && newValue?.end) {
-      isUpdatingFromProps = true
+      //isUpdatingFromProps = true
       const startDate = new Date(newValue.start)
       const endDate = new Date(newValue.end)
 
-      // Validasi Date Object Valid
       if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
-        dateRange.value = [startDate, endDate]
-      } else {
+        const currentStart = dateRange.value?.[0] ? format(dateRange.value[0], 'yyyy-MM-dd') : ''
+        const currentEnd = dateRange.value?.[1] ? format(dateRange.value[1], 'yyyy-MM-dd') : ''
+
+        // Hanya ubah dateRange jika nilainya berbeda dari prop
+        if (currentStart !== newValue.start || currentEnd !== newValue.end) {
+          dateRange.value = [startDate, endDate]
+        }
+      } else if (dateRange.value !== null) {
         dateRange.value = null
       }
-      isUpdatingFromProps = false
-    } else if (!newValue?.start && !newValue?.end) {
+    } else if (!newValue?.start && !newValue?.end && dateRange.value !== null) {
       dateRange.value = null
     }
   },
@@ -48,20 +52,20 @@ watch(
 )
 
 watch(dateRange, (newRange) => {
-  if (isUpdatingFromProps) return
+  let startStr = ''
+  let endStr = ''
 
-  if (!newRange || !newRange[0] || !newRange[1]) {
-    emit('update:modelValue', { start: '', end: '' })
-    return
+  if (newRange && newRange[0] && newRange[1]) {
+    try {
+      startStr = format(newRange[0], 'yyyy-MM-dd')
+      endStr = format(newRange[1], 'yyyy-MM-dd')
+    } catch (e) {
+      // Abaikan jika date invalid
+    }
   }
 
-  const [start, end] = newRange
-  try {
-    const startStr = format(start, 'yyyy-MM-dd')
-    const endStr = format(end, 'yyyy-MM-dd')
+  if (props.modelValue?.start !== startStr || props.modelValue?.end !== endStr) {
     emit('update:modelValue', { start: startStr, end: endStr })
-  } catch (e) {
-    // Abaikan jika tanggal belum selesai dipilih/invalid
   }
 })
 

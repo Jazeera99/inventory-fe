@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 
 interface OrderItem {
   product_sku: string
@@ -25,8 +26,11 @@ interface OrderDetail {
   items?: OrderItem[]
 }
 
+const authStore = useAuthStore()
+const canViewPrice = computed(() => authStore.hasPermission('Lihat Harga'))
+
 const props = defineProps<{
-  order: OrderDetail | null
+  order: any
   loading?: boolean
 }>()
 
@@ -133,7 +137,7 @@ const formatDate = (date?: string | null) => {
               <th class="py-2 px-3">Produk</th>
               <th class="py-2 px-3 text-right">Dipesan</th>
               <th class="py-2 px-3 text-right">Terpenuhi</th>
-              <th class="py-2 px-3 text-right">Harga Satuan</th>
+              <th v-if="canViewPrice" class="py-2 px-3 text-right">Harga Satuan</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
@@ -151,7 +155,7 @@ const formatDate = (date?: string | null) => {
               >
                 {{ item.qty_fulfilled }}
               </td>
-              <td class="py-2.5 px-3 text-right text-gray-600">
+              <td v-if="canViewPrice" class="py-2.5 px-3 text-right text-gray-600">
                 {{ formatCurrency(item.unit_price) }}
               </td>
             </tr>

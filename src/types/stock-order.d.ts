@@ -36,10 +36,28 @@ type StockOrder = {
   created_at?: string
 }
 
+type ReturnableOrderItem = {
+  product_sku: string
+  product_name?: string
+  qty_available_for_return: number
+  unit_price: number
+}
+
+type ReturnableOrder = {
+  id: number
+  order_no: string
+  supplier_id?: number | null
+  customer_id?: number | null
+  supplier?: { id: number; name: string } | null
+  customer?: { id: number; name: string } | null
+  items: ReturnableOrderItem[]
+}
+
 type CreateStockOrderPayload = {
   type: StockOrderType
   supplier_id?: number | null
   customer_id?: number | null
+  parent_id?: number | null
   order_date: string
   expected_date?: string | null
   notes?: string | null

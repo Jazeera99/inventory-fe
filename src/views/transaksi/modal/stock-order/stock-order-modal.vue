@@ -69,12 +69,34 @@ const showPartyDropdown = ref(false)
 const sourceSearchQuery = ref('')
 const showSourceDropdown = ref(false)
 
+const formatInputDate = (dateVal: any): string => {
+  if (!dateVal) return ''
+  const date = new Date(dateVal)
+  if (isNaN(date.getTime())) return ''
+
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+  // if (dateVal instanceof Date) {
+  //   const year = dateVal.getFullYear()
+  //   const month = String(dateVal.getMonth() + 1).padStart(2, '0')
+  //   const day = String(dateVal.getDate()).padStart(2, '0')
+  //   return `${year}-${month}-${day}`
+  // }
+  // if (typeof dateVal === 'string') {
+  //   // Ambil langsung bagian YYYY-MM-DD sebelum karakter 'T' (tanpa lewati new Date)
+  //   return dateVal.split('T')[0] || ''
+  // }
+  // return ''
+}
+
 const form = reactive({
   type: 'INBOUND' as 'INBOUND' | 'OUTBOUND' | 'RETURN_IN' | 'RETURN_OUT',
   party_id: null as number | null,
   parent_id: null as number | null,
   party_name: '',
-  order_date: new Date().toISOString().split('T')[0],
+  order_date: formatInputDate(new Date()),
   expected_date: null as string | null,
   notes: '',
   items: [] as FormItem[],
@@ -105,7 +127,8 @@ const fetchParties = async () => {
   try {
     const endpoint = isSupplierType.value ? 'admin/suppliers' : 'admin/customers'
     const response = await api.GET<any>(endpoint)
-    parties.value = response.data || []
+    const raw = response.data
+    parties.value = Array.isArray(raw) ? raw : raw?.data || []
   } catch (error) {
     console.error('Gagal mengambil data pihak terkait:', error)
     parties.value = []
@@ -131,14 +154,30 @@ const selectSourceOrder = (source?: any) => {
   const party = isSupplierType.value ? source.supplier : source.customer
   form.party_name = party?.supplier_name || party?.customer_name || ''
   partySearchQuery.value = form.party_name
-  form.items = source.items.map((item: any) => ({
-    product_sku: item.product_sku,
-    qty_ordered: item.qty_available_for_return,
-    unit_price: item.unit_price,
-    searchQuery: item.product_sku,
-    skuModel: { produkSku: item.product_sku, isValid: true, isError: false },
-    showDropdown: false,
-  }))
+
+  if (source.order_date) {
+    form.order_date = source.order_date
+  }
+
+  form.items = source.items
+    .map((item: any) => {
+      const qtyFulfilled = Number(item.qty_fulfilled) || 0
+      const alreadyReturned = Number(item.qty_already_returned) || 0
+      const maxAvailable = Math.max(0, qtyFulfilled - alreadyReturned)
+
+      return {
+        product_sku: item.product_sku,
+        //qty_ordered: item.qty_available_for_return,
+        qty_ordered: maxAvailable,
+        max_returnable: maxAvailable,
+        unit_price: item.unit_price,
+        searchQuery: item.product_sku,
+        skuModel: { produkSku: item.product_sku, isValid: true, isError: false },
+        showDropdown: false,
+      }
+    })
+
+    .filter((item: any) => item.max_returnable > 0)
 }
 
 const handleSourceInput = () => {
@@ -174,6 +213,11 @@ const getFilteredParties = computed(() => {
   })
 })
 
+const getPartyName = (party?: Party | null): string => {
+  if (!party) return ''
+  return party.name || party.supplier_name || party.customer_name || ''
+}
+
 const selectParty = (party: Party) => {
   if (party.is_active === false && !isReturn.value) {
     alert(
@@ -183,7 +227,7 @@ const selectParty = (party: Party) => {
   }
 
   form.party_id = party.id
-  const name = party.supplier_name || party.customer_name || party.name || ''
+  const name = getPartyName(party)
   form.party_name = name
   partySearchQuery.value = name
   showPartyDropdown.value = false
@@ -345,7 +389,7 @@ const handleSubmitWithStatus = (targetStatus: 'DRAFT' | 'PENDING') => {
 }
 
 const handleSubmit = () => {
-  handleSubmitWithStatus('PENDING')
+  handleSubmitWithStatus('DRAFT')
 }
 
 watch(
@@ -399,8 +443,9 @@ watch(
           : (props.order.customer_id ?? null)
         form.parent_id = props.order.parent_id ?? null
         sourceSearchQuery.value = props.order.parent_order_no || ''
-        form.order_date = props.order.order_date
-        form.expected_date = props.order.expected_date ?? null
+        form.order_date =
+          formatInputDate(props.order.order_date) || new Date().toISOString().split('T')[0]
+        form.expected_date = formatInputDate(props.order.expected_date) || null
         form.notes = props.order.notes || ''
 
         form.items = (props.order.items || []).map((item) => ({
@@ -778,6 +823,7 @@ watch(
                       type="number"
                       placeholder="Qty"
                       min="1"
+                      :max="isReturn && item.max_returnable ? item.max_returnable : undefined"
                       class="w-full px-2 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white border-gray-300"
                       required
                     />
@@ -799,7 +845,21 @@ watch(
                       class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm font-normal text-gray-700 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
                     />
                   </div>
-
+                  <button
+                    type="button"
+                    @click="removeItem(index)"
+                    class="p-2 text-rose-500 hover:bg-rose-50 hover:text-rose-700 rounded-lg transition shrink-0 self-center"
+                    title="Hapus baris ini"
+                  >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                  </button>
                   <!-- Menghapus icon/tanda silang merah -->
                 </div>
 
@@ -838,14 +898,14 @@ watch(
 
           <!-- Opsi 1: Mode EDIT -> Muncul Simpan Draft & Update Order -->
           <template v-if="order">
-            <button
+            <!-- <button
               type="button"
               @click="handleSubmitWithStatus('DRAFT')"
               class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition text-sm font-medium disabled:opacity-50"
               :disabled="loading || !isFormValid"
             >
               Simpan Draft
-            </button>
+            </button> -->
             <button
               type="button"
               @click="handleSubmitWithStatus('PENDING')"

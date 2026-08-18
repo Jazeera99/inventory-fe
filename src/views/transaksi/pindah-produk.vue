@@ -199,6 +199,11 @@ const getVirtualCapacityForLine = (index: number) => {
 }
 
 onMounted(async () => {
+  const stockOrderIdFromQuery = route.query.stock_order_id
+  if (stockOrderIdFromQuery) {
+    localStorage.setItem('active_stock_order_id', String(stockOrderIdFromQuery))
+  }
+
   await fetchProducts()
   await fetchRacks()
   await fetchLocations()
@@ -529,6 +534,19 @@ const submitPindahProduk = async () => {
       await fetchLocations()
     }
     resetForm()
+
+    const fromTrigger = route.query.from_trigger
+    const stockOrderId = route.query.stock_order_id
+
+    if (fromTrigger === 'OUT') {
+      // Redirect kembali ke Halaman Produk Keluar beserta ID Order-nya
+      router.push({
+        path: '/produk-keluar', // Sesuaikan path rute produk keluar kamu
+        query: stockOrderId ? { stock_order_id: String(stockOrderId) } : {},
+      })
+      return
+    }
+
     currentTab.value = 'active'
     await loadHistoryData()
   } catch (error: any) {

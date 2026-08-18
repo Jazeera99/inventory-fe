@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useApi } from '@/functions/api'
+import { useAuthStore } from '@/stores/auth'
 import debounce from 'lodash.debounce'
 import AppTableFilter from '@/components/app-table-filter.vue'
 import AppInputSearch from '@/components/app-input-search.vue'
@@ -10,6 +11,10 @@ import StockOrderModal from './modal/stock-order/stock-order-modal.vue'
 
 const router = useRouter()
 const api = useApi()
+const authStore = useAuthStore()
+const canManageOrder = computed(
+  () => authStore.hasPermission('Kelola Order') || authStore.user?.role === 'Superadmin',
+)
 
 // Interface Paginated Data
 interface OrderPaginated {
@@ -36,9 +41,12 @@ const filters = reactive({
   status: '',
   start_date: '',
   end_date: '',
+  exp_start_date: '',
+  exp_end_date: '',
 })
 
 const dateFilterModel = ref<{ start?: any; end?: any }>({})
+const expDateFilterModel = ref<{ start?: any; end?: any }>({})
 
 // Helper format tanggal yang aman terhadap null / Date / String / Range Object
 const formatDateString = (val: any): string => {
@@ -81,6 +89,25 @@ watch(
   { deep: true },
 )
 
+watch(
+  expDateFilterModel,
+  (newVal) => {
+    if (!newVal) {
+      filters.exp_start_date = ''
+      filters.exp_end_date = ''
+      return
+    }
+    if (Array.isArray(newVal)) {
+      filters.exp_start_date = formatDateString(newVal[0])
+      filters.exp_end_date = formatDateString(newVal[1])
+    } else {
+      filters.exp_start_date = formatDateString(newVal?.start)
+      filters.exp_end_date = formatDateString(newVal?.end)
+    }
+  },
+  { deep: true },
+)
+
 // Modal state
 const showModal = ref(false)
 const selectedOrder = ref<StockOrder | null>(null)
@@ -100,6 +127,8 @@ const fetchOrders = async () => {
       // search: filters.search || undefined,
       start_date: filters.start_date || undefined,
       end_date: filters.end_date || undefined,
+      exp_start_date: filters.exp_start_date || undefined,
+      exp_end_date: filters.exp_end_date || undefined,
       page: orders.value.current_page,
       per_page: 10,
     }
@@ -161,7 +190,14 @@ watch(
 
 // Watcher untuk auto-search & auto-filter di semua halaman
 watch(
-  () => [filters.type, filters.status, filters.start_date, filters.end_date],
+  () => [
+    filters.type,
+    filters.status,
+    filters.start_date,
+    filters.end_date,
+    filters.exp_start_date,
+    filters.exp_end_date,
+  ],
   () => {
     debouncedFetch()
   },
@@ -184,7 +220,10 @@ const resetFilters = () => {
   filters.status = ''
   filters.start_date = ''
   filters.end_date = ''
+  filters.exp_start_date = ''
+  filters.exp_end_date = ''
   dateFilterModel.value = { start: '', end: '' }
+  expDateFilterModel.value = { start: '', end: '' }
   orders.value.current_page = 1
   fetchOrders()
 }
@@ -200,13 +239,21 @@ const statusBadge = (status: string) => {
   return map[status] || 'bg-gray-100 text-gray-600'
 }
 
-const formatDate = (date: string) => {
+const formatDate = (date?: string | null) => {
   if (!date) return '-'
   return new Date(date).toLocaleDateString('id-ID', {
     day: '2-digit',
-    month: 'short',
+    month: 'long',
     year: 'numeric',
   })
+}
+
+const isUrgentDate = (dateString?: string | null) => {
+  if (!dateString) return false
+  const expDate = new Date(dateString)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return expDate <= today
 }
 
 const calculateProgress = (order: StockOrder) => {
@@ -291,6 +338,25 @@ const cancelOrder = async (order: any) => {
   }
 }
 
+const closeRemainingOrder = async (order: any) => {
+  const reason = prompt(
+    `Sisa barang yang belum dikirim pada order ${order.order_no} akan dibatalkan. Masukkan alasan (Opsional):`,
+  )
+  if (reason === null) return // User menekan cancel di prompt
+
+  try {
+    await api.POST(`admin/stock-orders/${order.id}/close-remaining`, { reason: reason })
+    alert(`Order ${order.order_no} berhasil di-Short Close (Dianggap Selesai Sebagian).`)
+    await fetchOrders()
+    if (showDetail.value && detailOrder.value?.id === order.id) {
+      viewOrder(order.id)
+    }
+  } catch (error: any) {
+    console.error('Gagal menutup sisa order:', error)
+    alert(error?.response?.data?.message || 'Gagal menutup sisa order.')
+  }
+}
+
 const closeModal = () => {
   showModal.value = false
   selectedOrder.value = null
@@ -356,6 +422,7 @@ onMounted(() => {
         <p class="text-sm text-gray-500 mt-1">Kelola pesanan pembelian dan penjualan</p>
       </div>
       <button
+        v-if="canManageOrder"
         @click="openCreateModal"
         class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
       >
@@ -386,6 +453,8 @@ onMounted(() => {
             class="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
           >
             <option value="">Semua</option>
+            <option value="DRAFT">Draft</option>
+            <option value="PENDING">Pending</option>
             <option value="PARTIAL">Partial</option>
             <option value="COMPLETED">Completed</option>
             <option value="CANCELLED">Cancelled</option>
@@ -398,6 +467,12 @@ onMounted(() => {
         <div>
           <label class="block text-xs font-medium text-gray-500 mb-1">Tanggal Order</label>
           <AppTableFilter v-model="dateFilterModel" minimal />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1"
+            >Tanggal Estimasi (Kirim/Tiba)</label
+          >
+          <AppTableFilter v-model="expDateFilterModel" minimal />
         </div>
         <button
           @click="resetFilters"
@@ -427,7 +502,10 @@ onMounted(() => {
                 Status
               </th>
               <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">
-                Tanggal
+                Tanggal Order
+              </th>
+              <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">
+                Tanggal Estimasi
               </th>
               <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">
                 Total Item
@@ -491,6 +569,19 @@ onMounted(() => {
                   </span>
                 </td>
                 <td class="px-4 py-3 text-sm">{{ formatDate(order.order_date) }}</td>
+                <td class="px-4 py-3 text-sm">
+                  <span
+                    :class="[
+                      'font-medium px-2 py-0.5 rounded',
+                      isUrgentDate(order.expected_date) &&
+                      !['COMPLETED', 'CANCELLED'].includes((order as any).status)
+                        ? 'bg-red-50 text-red-600 border border-red-200'
+                        : 'text-gray-700',
+                    ]"
+                  >
+                    {{ formatDate(order.expected_date) }}
+                  </span>
+                </td>
                 <td class="px-4 py-3 text-right">{{ order.items?.length || 0 }}</td>
                 <td class="px-4 py-3">
                   <div class="flex items-center justify-end gap-2">
@@ -510,7 +601,7 @@ onMounted(() => {
                       Detail
                     </button>
                     <button
-                      v-if="['DRAFT', 'PENDING', 'PARTIAL'].includes((order as any).status)"
+                      v-if="canManageOrder && ['DRAFT'].includes((order as any).status)"
                       @click="editOrder(order)"
                       class="p-1 text-yellow-600 hover:underline"
                     >
@@ -522,6 +613,14 @@ onMounted(() => {
                       class="p-1 text-green-600 hover:underline"
                     >
                       Proses
+                    </button>
+                    <button
+                      v-if="canManageOrder && (order as any).status === 'PARTIAL'"
+                      @click="closeRemainingOrder(order)"
+                      class="p-1 text-purple-600 hover:underline font-medium"
+                      title="Selesaikan order & batalkan sisa kuantitas barang"
+                    >
+                      Close
                     </button>
                   </div>
                 </td>
@@ -602,6 +701,7 @@ onMounted(() => {
             }
           "
           @cancel="() => detailOrder && cancelOrder(detailOrder)"
+          @short-close="closeRemainingOrder(detailOrder)"
         />
         <div class="text-right mt-4 border-t pt-2">
           <button @click="closeDetail" class="px-4 py-2 bg-gray-600 text-white rounded-lg">

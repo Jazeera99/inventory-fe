@@ -135,7 +135,7 @@ onMounted(async () => {
 
   window.addEventListener('keydown', handleKeyDown)
 
-  const stockOrderId = route.query.stock_order_id
+  const stockOrderId = route.query.stock_order_id || localStorage.getItem('active_stock_order_id')
   if (stockOrderId) {
     try {
       const { useApi } = await import('@/functions/api')
@@ -276,10 +276,15 @@ const alihkanKePindahProduk = () => {
   localStorage.setItem('pending_evacuation_items', JSON.stringify(dataPindah))
   showFefoModal.value = false
 
+  const activeOrderId = route.query.stock_order_id || localStorage.getItem('active_stock_order_id')
+
   // Arahkan ke halaman pindah produk
   router.push({
     path: 'pindah-produk',
-    query: { from_trigger: 'OUT' },
+    query: {
+      from_trigger: 'OUT',
+      ...(activeOrderId ? { stock_order_id: String(activeOrderId) } : {}),
+    },
   })
 }
 
@@ -337,6 +342,7 @@ const submitProdukKeluar = async (forceOut = false) => {
 
     // Jika sukses, bersihkan draf ketikan di localStorage
     localStorage.removeItem(LOCAL_STORAGE_KEY.value)
+    localStorage.removeItem('active_stock_order_id')
 
     alert('Transaksi Produk Keluar sukses disimpan!')
     resetForm()

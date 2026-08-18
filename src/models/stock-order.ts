@@ -130,12 +130,28 @@ export function useStockOrderList() {
     }
   }
 
+  const closeOrderRemaining = async (id: number, reason: string) => {
+    try {
+      loading.value = true
+      const response = await api.POST<any>(`admin/stock-orders/${id}/close-remaining`, {
+        reason: reason,
+      })
+      return response
+    } catch (error) {
+      console.error('Gagal mentutup sisa order:', error)
+      throw error
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     orders,
     loading,
     meta,
     getData,
     cancelOrder,
+    closeOrderRemaining,
   }
 }
 

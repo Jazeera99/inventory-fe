@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useAuthStore } from '@/stores/auth'
+import { useApi } from '@/functions/api'
+import axios from 'axios'
 
 export interface OrderItem {
   product_sku: string
@@ -20,8 +23,8 @@ export interface OrderDetail {
   expected_date?: string | null
   notes?: string | null
   cancel_reason?: string | null
-  supplier?: { supplier_name: string; email?: string; phone?: string; address?: string }
-  customer?: { customer_name: string; email?: string; phone?: string; address?: string }
+  supplier?: { supplier_name: string; phone?: string; address?: string }
+  customer?: { customer_name: string; phone?: string; address?: string }
   items?: OrderItem[]
   parent_order_no?: string | null
   returns?: Array<{
@@ -44,9 +47,18 @@ const emit = defineEmits<{
   (e: 'create-transaction'): void
   (e: 'edit'): void
   (e: 'cancel'): void
+  (e: 'short-close'): void
 }>()
 
+const authStore = useAuthStore()
+const canViewPrice = computed(
+  () => authStore.hasPermission('Lihat Harga') || authStore.user?.role === 'Superadmin',
+)
+const canManageOrder = computed(
+  () => authStore.hasPermission('Kelola Order') || authStore.user?.role === 'Superadmin',
+)
 const receiptContent = ref<HTMLElement | null>(null)
+const isDownloadingPdf = ref(false)
 
 const statusBadgeClass = computed(() => {
   const map: Record<string, string> = {
@@ -89,10 +101,16 @@ const documentTitle = computed(
 
 const totalAmount = computed(() => {
   if (!props.order?.items || !Array.isArray(props.order.items)) return 0
-  return props.order.items.reduce(
-    (sum, item) => sum + (Number(item.qty_ordered) || 0) * (Number(item.unit_price) || 0),
-    0,
-  )
+
+  // Jika status COMPLETED, hitung berdasarkan qty_fulfilled.
+  // Jika status lain (DRAFT, PENDING, PARTIAL, CANCELLED), hitung berdasarkan qty_ordered.
+  const isCompleted = props.order.status === 'COMPLETED'
+
+  return props.order.items.reduce((sum, item) => {
+    const qty = isCompleted ? Number(item.qty_fulfilled) || 0 : Number(item.qty_ordered) || 0
+    const price = Number(item.unit_price) || 0
+    return sum + qty * price
+  }, 0)
 })
 
 const formatRupiah = (amount: number) => {
@@ -154,12 +172,104 @@ const formatNumber = (num: number) => {
   return new Intl.NumberFormat('id-ID').format(num)
 }
 
-const handlePrint = () => {
-  emit('print')
-  if (receiptContent.value) {
-    window.print()
+const downloadPdf = async () => {
+  if (!props.order?.id) return
+  isDownloadingPdf.value = true
+
+  try {
+    const token = localStorage.getItem('token') || localStorage.getItem('api_token') || ''
+    const apiBaseUrl = (import.meta.env.VITE_BASE_API || 'http://inventory-api.test/api').replace(
+      /\/$/,
+      '',
+    )
+    const response = await axios.get(`${apiBaseUrl}/admin/stock-orders/${props.order.id}/pdf`, {
+      responseType: 'blob',
+      headers: {
+        Accept: 'application/pdf',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
+
+    const contentType = response.headers['content-type'] || ''
+    if (contentType.includes('application/json') || contentType.includes('text/html')) {
+      const text = await response.data.text()
+      let message = 'Terjadi kesalahan pada server saat membuat PDF.'
+
+      try {
+        const jsonError = JSON.parse(text)
+        message = jsonError.message || message
+      } catch {
+        message = text || message
+      }
+
+      throw new Error(message)
+    }
+
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const blobUrl = window.URL.createObjectURL(blob)
+
+    const link = document.createElement('a')
+    link.href = blobUrl
+    link.setAttribute('download', `Stock-Order-${props.order.order_no}.pdf`)
+    document.body.appendChild(link)
+    link.click()
+
+    link.remove()
+    window.URL.revokeObjectURL(blobUrl)
+  } catch (error: any) {
+    console.error('Gagal mengunduh PDF:', error)
+    alert(error?.message || 'Gagal membuat dokumen PDF. Cek log server.')
+  } finally {
+    isDownloadingPdf.value = false
   }
 }
+
+// const downloadPdf = async () => {
+//   if (!props.order?.id) return
+//   isDownloadingPdf.value = true
+
+//   try {
+//     // 1. Panggil endpoint dengan respon bertipe 'blob'
+//     const response = await api.GET<any>(`admin/stock-orders/${props.order.id}/pdf`, {}, {
+//       responseType: 'blob'
+//     })
+
+//     // 2. Buat URL sementara untuk file Blob
+//     const blob = new Blob([response.data], { type: 'application/pdf' })
+//     const blobUrl = window.URL.createObjectURL(blob)
+
+//     const link = document.createElement('a')
+//     link.href = blobUrl
+//     link.setAttribute('download', `Stock-Order-${props.order.order_no}.pdf`)
+//     document.body.appendChild(link)
+//     link.click()
+
+//     // Cleanup
+//     link.remove()
+//     window.URL.revokeObjectURL(blobUrl)
+
+//     // Opsional: Jika ingin LANGSUNG DOWNLOAD otomatis (tanpa buka tab):
+//     // const link = document.createElement('a')
+//     // link.href = blobUrl
+//     // link.setAttribute('download', `Stock-Order-${props.order.order_no}.pdf`)
+//     // document.body.appendChild(link)
+//     // link.click()
+//     // link.remove()
+
+//   } catch (error) {
+//     console.error('Gagal mengunduh berkas PDF:', error)
+//     alert('Gagal mencetak dokumen PDF. Pastikan koneksi atau hak akses Anda sesuai.')
+//   } finally {
+//     isDownloadingPdf.value = false
+//   }
+// }
+
+// const handlePrint = () => {
+//   emit('print')
+//   if (receiptContent.value) {
+//     window.print()
+//   }
+// }
 </script>
 
 <template>
@@ -171,11 +281,21 @@ const handlePrint = () => {
       </h3>
       <div class="flex gap-2">
         <button
-          @click="handlePrint"
+          v-if="order"
+          @click="downloadPdf"
+          :disabled="isDownloadingPdf"
+          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+        >
+          <span v-if="isDownloadingPdf" class="animate-spin text-xs">⏳</span>
+          <span v-else>📄</span>
+          {{ isDownloadingPdf ? 'Memproses PDF...' : 'Cetak / Download PDF' }}
+        </button>
+        <!-- <button
+          @click="downloadPdf"
           class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
         >
           Cetak / PDF
-        </button>
+        </button> -->
         <!-- <button
           v-if="
             canCreateTransaction ||
@@ -187,14 +307,25 @@ const handlePrint = () => {
           + Transaksi Stok
         </button> -->
         <button
-          v-if="['DRAFT', 'PENDING', 'PARTIAL'].includes(order.status)"
+          v-if="
+            (canManageOrder && ['DRAFT'].includes((order as any).status)) ||
+            authStore.user?.role === 'Superadmin'
+          "
           @click="emit('edit')"
           class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition"
         >
           Edit
         </button>
         <button
-          v-if="['DRAFT', 'PENDING', 'PARTIAL'].includes(order.status)"
+          v-if="canManageOrder && order.status === 'PARTIAL'"
+          @click="emit('short-close')"
+          class="px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+          title="Selesaikan order & batalkan sisa kuantitas barang"
+        >
+          Batalkan Sisa
+        </button>
+        <button
+          v-if="canManageOrder && ['DRAFT', 'PENDING'].includes(order.status)"
           @click="emit('cancel')"
           class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
         >
@@ -269,7 +400,7 @@ const handlePrint = () => {
               <span class="text-gray-500">Total Qty:</span>
               <span class="font-medium">{{ totalQuantity }}</span>
             </div>
-            <div class="flex justify-between">
+            <div v-if="canViewPrice" class="flex justify-between">
               <span class="text-gray-500">Total Nilai:</span>
               <span class="font-medium text-blue-600">{{ formatRupiah(totalAmount) }}</span>
             </div>
@@ -305,8 +436,9 @@ const handlePrint = () => {
               <th class="py-2 px-3">Produk</th>
               <th class="py-2 px-3 text-right">Dipesan</th>
               <th class="py-2 px-3 text-right">Terpenuhi</th>
-              <th class="py-2 px-3 text-right">Harga Satuan</th>
-              <th class="py-2 px-3 text-right">Subtotal</th>
+              <th class="py-2 px-3 text-right">Sisa (Belum Terkirim)</th>
+              <th v-if="canViewPrice" class="py-2 px-3 text-right">Harga Satuan</th>
+              <th v-if="canViewPrice" class="py-2 px-3 text-right">Subtotal</th>
             </tr>
           </thead>
           <tbody>
@@ -324,9 +456,19 @@ const handlePrint = () => {
               >
                 {{ item.qty_fulfilled }}
               </td>
-              <td class="py-2 px-3 text-right">{{ formatRupiah(item.unit_price) }}</td>
-              <td class="py-2 px-3 text-right font-medium">
-                {{ formatRupiah(item.qty_ordered * item.unit_price) }}
+              <td class="py-2 px-3 text-right font-semibold text-rose-500">
+                {{ Math.max(0, item.qty_ordered - item.qty_fulfilled) }}
+              </td>
+              <td v-if="canViewPrice" class="py-2 px-3 text-right">
+                {{ formatRupiah(item.unit_price) }}
+              </td>
+              <td v-if="canViewPrice" class="py-2 px-3 text-right font-medium">
+                {{
+                  formatRupiah(
+                    (order.status === 'COMPLETED' ? item.qty_fulfilled : item.qty_ordered) *
+                      item.unit_price,
+                  )
+                }}
               </td>
             </tr>
           </tbody>
